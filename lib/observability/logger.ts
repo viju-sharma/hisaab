@@ -68,7 +68,9 @@ function emit(level: LogLevel, event: string, fields: Record<string, unknown>) {
   }
 
   if (!PRETTY) {
-    process.stdout.write(`${JSON.stringify(record)}\n`)
+    // console rather than process.stdout: instrumentation.ts is bundled for the
+    // edge runtime as well, which has no Node streams.
+    console.log(JSON.stringify(record))
     return
   }
 
@@ -85,10 +87,10 @@ function emit(level: LogLevel, event: string, fields: Record<string, unknown>) {
         .map((k) => `${k}=${format(rest[k as keyof typeof rest])}`)
         .join(" ")}${RESET}`
     : ""
-  process.stdout.write(
+  console.log(
     `${COLOR[level]}${level.padEnd(5)}${RESET} ${DIM}${
       traceId?.slice(3, 11) ?? "--------"
-    }${RESET} ${indent}${event}${suffix}\n`
+    }${RESET} ${indent}${event}${suffix}`
   )
 }
 

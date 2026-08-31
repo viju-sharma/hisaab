@@ -23,57 +23,44 @@ export function NewExpenseButton({
   children,
 }: {
   groups: ShellGroup[]
-  /// The caller supplies the trigger, so the same behaviour backs both the
-  /// desktop icon button and the mobile floating action button.
+  /// The caller supplies the visual, so the same behaviour backs both the
+  /// desktop icon button and the mobile floating action button. It is rendered
+  /// as the button's content — never wrapped in a second button, which would
+  /// nest interactive elements and break hydration.
   children?: React.ReactNode
 }) {
   const router = useRouter()
   const [open, setOpen] = useState(false)
 
-  const go = (groupId: string) => {
-    setOpen(false)
-    router.push(`/groups/${groupId}/expenses/new`)
-  }
-
-  const trigger =
-    children ??
-    (
-      <Button size="icon-sm" aria-label="Add an expense">
+  const trigger = (onClick?: () => void) =>
+    children ? (
+      <button
+        type="button"
+        onClick={onClick}
+        aria-label="Add an expense"
+        className="contents"
+      >
+        {children}
+      </button>
+    ) : (
+      <Button size="icon-sm" onClick={onClick} aria-label="Add an expense">
         <Plus />
       </Button>
     )
 
   if (groups.length === 0) {
-    return (
-      <button
-        type="button"
-        onClick={() => router.push("/groups/new")}
-        className="contents"
-      >
-        {trigger}
-      </button>
-    )
+    return trigger(() => router.push("/groups/new"))
   }
 
   if (groups.length === 1) {
-    return (
-      <button
-        type="button"
-        onClick={() => go(groups[0]!.id)}
-        className="contents"
-      >
-        {trigger}
-      </button>
+    return trigger(() =>
+      router.push(`/groups/${groups[0]!.id}/expenses/new`)
     )
   }
 
   return (
     <Drawer open={open} onOpenChange={setOpen}>
-      <DrawerTrigger asChild>
-        <button type="button" className="contents">
-          {trigger}
-        </button>
-      </DrawerTrigger>
+      <DrawerTrigger asChild>{trigger()}</DrawerTrigger>
       <DrawerContent>
         <DrawerHeader>
           <DrawerTitle>Add an expense</DrawerTitle>
@@ -84,7 +71,10 @@ export function NewExpenseButton({
             <button
               key={group.id}
               type="button"
-              onClick={() => go(group.id)}
+              onClick={() => {
+                setOpen(false)
+                router.push(`/groups/${group.id}/expenses/new`)
+              }}
               style={{ "--stagger": index } as React.CSSProperties}
               className="animate-row-in flex items-center gap-3 rounded-xl px-3 py-3 text-left text-sm font-medium transition-colors hover:bg-muted active:bg-muted"
             >
