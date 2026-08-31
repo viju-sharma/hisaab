@@ -1,10 +1,13 @@
+import Link from "next/link"
 import { notFound } from "next/navigation"
 import { format } from "date-fns"
+import { Pencil } from "lucide-react"
 
 import { CommentBox } from "@/components/hisaab/comment-box"
 import { DeleteExpenseButton } from "@/components/hisaab/delete-expense-button"
 import { MemberAvatar } from "@/components/hisaab/member-avatar"
 import { Money } from "@/components/hisaab/money"
+import { Button } from "@/components/ui/button"
 import { getExpenseDetail } from "@/server/queries/expense"
 
 export default async function ExpenseDetailPage({
@@ -41,7 +44,20 @@ export default async function ExpenseDetailPage({
               {expense.createdBy.name ?? "someone"}
             </p>
           </div>
-          <DeleteExpenseButton expenseId={expense.id} groupId={expense.groupId} />
+          <div className="flex shrink-0 gap-1">
+            <Button asChild variant="ghost" size="icon-sm">
+              <Link
+                href={`/groups/${expense.groupId}/expenses/${expense.id}/edit`}
+                aria-label="Edit this expense"
+              >
+                <Pencil />
+              </Link>
+            </Button>
+            <DeleteExpenseButton
+              expenseId={expense.id}
+              groupId={expense.groupId}
+            />
+          </div>
         </div>
 
         <p className="mt-4 font-display text-3xl font-semibold tracking-tight">
