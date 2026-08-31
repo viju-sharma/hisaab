@@ -1,0 +1,64 @@
+/// A template the cron at app/api/cron/recurring/route.ts materialises into real
+/// Expense rows. Payer and split configuration are held as JSON because their
+/// shape follows `splitMethod`; they are validated by the same zod schema the
+/// expense form uses.
+model RecurringExpense {
+  id      String @id @default(cuid())
+  groupId String
+  group   Group  @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  description String
+  notes       String?
+  categoryId  String?
+  category    Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+
+  currency    String      @default("INR")
+  amountMinor Int
+  splitMethod SplitMethod @default(EQUAL)
+  payerConfig Json
+  splitConfig Json
+
+  frequency RecurrenceFreq
+  /// Every `interval` units of `frequency` — e.g. interval 2 + MONTHLY.
+  interval  Int            @default(1)
+  /// Day of month (1-31) for MONTHLY/QUARTERLY/YEARLY; clamped to month length.
+  anchorDay Int?
+  /// 0-6, Sunday-first, for WEEKLY/FORTNIGHTLY.
+  weekday   Int?
+
+  startDate DateTime
+  endDate   DateTime?
+  nextRunAt DateTime
+  lastRunAt DateTime?
+  isPaused  Boolean   @default(false)
+
+  createdById String
+  createdBy   User   @relation(fields: [createdById], references: [id])
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  generated Expense[]
+  runs      RecurringRun[]
+
+  @@index([isPaused, deletedAt, nextRunAt])
+  @@index([groupId])
+}
+
+/// One row per scheduled occurrence. The unique key is what makes the recurring
+/// cron safely re-runnable: a retry or an overlapping invocation collides here
+/// instead of creating a duplicate expense.
+model RecurringRun {
+  id                 String           @id @default(cuid())
+  recurringExpenseId String
+  recurring          RecurringExpense @relation(fields: [recurringExpenseId], references: [id], onDelete: Cascade)
+
+  scheduledFor DateTime
+  ranAt        DateTime @default(now())
+  expenseId    String?
+  error        String?
+
+  @@unique([recurringExpenseId, scheduledFor])
+  @@index([scheduledFor])
+}

@@ -1,0 +1,22 @@
+/// The human-readable feed. Denormalised on write so rendering a group's history
+/// never needs to reconstruct meaning from soft-deleted rows.
+model Activity {
+  id      String  @id @default(cuid())
+  groupId String?
+  group   Group?  @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  actorId String
+  actor   User   @relation(fields: [actorId], references: [id], onDelete: Cascade)
+
+  type    EventType
+  summary String
+  data    Json?
+
+  entityType String?
+  entityId   String?
+
+  createdAt DateTime @default(now())
+
+  @@index([groupId, createdAt])
+  @@index([actorId, createdAt])
+}

@@ -1,0 +1,116 @@
+/// System categories are seeded with `groupId = null`; a group may add its own.
+model Category {
+  id      String  @id @default(cuid())
+  groupId String?
+  group   Group?  @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  key   String
+  label String
+  emoji String  @default("🏷️")
+  color String?
+
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+
+  expenses  Expense[]
+  recurring RecurringExpense[]
+
+  @@unique([groupId, key])
+  @@index([groupId])
+}
+
+/// A single spend. Money is stored as integer minor units (paise for INR) — see
+/// lib/money.ts. `groupAmountMinor` is the total converted into the group's
+/// currency at `exchangeRate`, denormalised so balance maths never re-converts
+/// and historic balances never drift when rates move.
+model Expense {
+  id      String @id @default(cuid())
+  groupId String
+  group   Group  @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  description String
+  notes       String?
+  categoryId  String?
+  category    Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+
+  currency         String  @default("INR")
+  amountMinor      Int
+  exchangeRate     Decimal @default(1) @db.Decimal(18, 8)
+  groupAmountMinor Int
+
+  date        DateTime
+  splitMethod SplitMethod @default(EQUAL)
+
+  createdById String
+  createdBy   User   @relation("ExpenseCreatedBy", fields: [createdById], references: [id])
+
+  /// Set when the row was materialised by the recurring-expense cron.
+  recurringExpenseId String?
+  recurring          RecurringExpense? @relation(fields: [recurringExpenseId], references: [id], onDelete: SetNull)
+
+  receiptUrl String?
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  payers   ExpensePayer[]
+  splits   ExpenseSplit[]
+  comments Comment[]
+
+  @@index([groupId, deletedAt, date])
+  @@index([createdById])
+  @@index([recurringExpenseId])
+}
+
+/// Who actually paid, and how much. Modelled as a table rather than a single
+/// `paidById` so "someone else paid" and "we split the bill at the counter" are
+/// the same code path.
+model ExpensePayer {
+  id        String  @id @default(cuid())
+  expenseId String
+  expense   Expense @relation(fields: [expenseId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  amountMinor Int
+
+  @@unique([expenseId, userId])
+  @@index([userId])
+}
+
+/// Who owes what. `amountMinor` is always the resolved figure — the inputs that
+/// produced it (`weight`, `percentBp`) are kept so the form can be re-opened in
+/// the mode it was created in.
+model ExpenseSplit {
+  id        String  @id @default(cuid())
+  expenseId String
+  expense   Expense @relation(fields: [expenseId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  amountMinor Int
+  /// Share count for SHARES.
+  weight      Int?
+  /// Basis points (10000 = 100%) for PERCENT, so percentages stay integers.
+  percentBp   Int?
+
+  @@unique([expenseId, userId])
+  @@index([userId])
+}
+
+model Comment {
+  id        String  @id @default(cuid())
+  expenseId String
+  expense   Expense @relation(fields: [expenseId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  body String
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  @@index([expenseId, createdAt])
+}

@@ -1,0 +1,78 @@
+// Shared enums for the Hisaab domain model.
+
+enum GroupType {
+  HOME
+  TRIP
+  COUPLE
+  EVENT
+  PROJECT
+  OTHER
+}
+
+enum MemberRole {
+  OWNER
+  ADMIN
+  MEMBER
+}
+
+/// How an expense total is divided between members.
+enum SplitMethod {
+  EQUAL
+  EXACT
+  PERCENT
+  SHARES
+  ITEMISED
+}
+
+enum SettlementMethod {
+  CASH
+  UPI
+  BANK_TRANSFER
+  CARD
+  OTHER
+}
+
+enum RecurrenceFreq {
+  DAILY
+  WEEKLY
+  FORTNIGHTLY
+  MONTHLY
+  QUARTERLY
+  YEARLY
+}
+
+/// One vocabulary shared by the activity feed and the notification centre, so a
+/// single domain event can render in both places without translation.
+enum EventType {
+  GROUP_CREATED
+  GROUP_UPDATED
+  GROUP_ARCHIVED
+  MEMBER_JOINED
+  MEMBER_LEFT
+  MEMBER_ROLE_CHANGED
+  INVITE_CREATED
+  INVITE_REVOKED
+  EXPENSE_ADDED
+  EXPENSE_UPDATED
+  EXPENSE_DELETED
+  COMMENT_ADDED
+  SETTLEMENT_RECORDED
+  SETTLEMENT_DELETED
+  RECURRING_CREATED
+  RECURRING_UPDATED
+  RECURRING_GENERATED
+  PAYMENT_REMINDER
+}
+
+/// Mutation verbs recorded in the immutable audit trail.
+enum AuditAction {
+  CREATE
+  UPDATE
+  DELETE
+  RESTORE
+  JOIN
+  LEAVE
+  SETTLE
+  INVITE
+  REVOKE
+}
