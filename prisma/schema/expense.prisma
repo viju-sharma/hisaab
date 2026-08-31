@@ -73,7 +73,10 @@ model ExpensePayer {
   userId    String
   user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  amountMinor Int
+  amountMinor      Int
+  /// The same figure in the group's currency, allocated from the expense's
+  /// converted total so the parts always sum back to it exactly.
+  groupAmountMinor Int
 
   @@unique([expenseId, userId])
   @@index([userId])
@@ -89,11 +92,13 @@ model ExpenseSplit {
   userId    String
   user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  amountMinor Int
+  amountMinor      Int
+  /// The same figure in the group's currency — see ExpensePayer.
+  groupAmountMinor Int
   /// Share count for SHARES.
-  weight      Int?
+  weight           Int?
   /// Basis points (10000 = 100%) for PERCENT, so percentages stay integers.
-  percentBp   Int?
+  percentBp        Int?
 
   @@unique([expenseId, userId])
   @@index([userId])
