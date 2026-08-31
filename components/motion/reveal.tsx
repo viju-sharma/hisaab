@@ -29,61 +29,12 @@ export function Reveal({ children, className, delay = 0 }: RevealProps) {
 
   return (
     <motion.div
+      data-reveal=""
       className={className}
       initial={reduced ? { opacity: 0 } : { opacity: 0, y: DISTANCE }}
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true, margin: "-12% 0px" }}
       transition={{ duration: DURATION, ease: EASE, delay }}
-    >
-      {children}
-    </motion.div>
-  )
-}
-
-/// Runs its `StaggerItem` children in sequence on mount. For the hero, where
-/// the order the eye should travel in is the order things appear.
-export function Stagger({ children, className, delay = 0 }: RevealProps) {
-  const reduced = useReducedMotion()
-
-  return (
-    <motion.div
-      className={className}
-      initial="hidden"
-      animate="shown"
-      variants={{
-        hidden: {},
-        shown: {
-          transition: {
-            // Reduced motion still gets the fade, but all at once: the point of
-            // the setting is that nothing moves or lingers.
-            staggerChildren: reduced ? 0 : 0.07,
-            delayChildren: delay,
-          },
-        },
-      }}
-    >
-      {children}
-    </motion.div>
-  )
-}
-
-export function StaggerItem({
-  children,
-  className,
-}: Omit<RevealProps, "delay">) {
-  const reduced = useReducedMotion()
-
-  return (
-    <motion.div
-      className={className}
-      variants={{
-        hidden: reduced ? { opacity: 0 } : { opacity: 0, y: DISTANCE },
-        shown: {
-          opacity: 1,
-          y: 0,
-          transition: { duration: DURATION, ease: EASE },
-        },
-      }}
     >
       {children}
     </motion.div>

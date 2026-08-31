@@ -71,14 +71,15 @@ export default function RootLayout({
       <html
         lang="en-IN"
         suppressHydrationWarning
-        className={cn(
-          "antialiased",
-          fontSans.variable,
-          fontMono.variable
-        )}
+        className={cn("antialiased", fontSans.variable, fontMono.variable)}
       >
         <head>
           <ThemeScript />
+          {/* Below the fold the reveals are JavaScript-driven, which is fine when
+            it loads and invisible when it does not. */}
+          <noscript>
+            <style>{`[data-reveal]{opacity:1!important;transform:none!important}`}</style>
+          </noscript>
         </head>
         <body className="min-h-svh bg-background">
           <ThemeProvider>
