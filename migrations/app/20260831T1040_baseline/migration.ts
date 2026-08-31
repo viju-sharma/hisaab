@@ -1,6 +1,6 @@
 #!/usr/bin/env -S node
-import type { Contract as End } from '../../snapshots/8244fd2e56624a9235dde43b055dc9eaeafb1c383316e2986afe00b1301bddf2/contract';
-import endContract from '../../snapshots/8244fd2e56624a9235dde43b055dc9eaeafb1c383316e2986afe00b1301bddf2/contract.json' with { type: 'json' };
+import type { Contract as End } from '../../snapshots/f50fb5acc2eb030d32c09f383019c1e577e1a57d6ddb1b97cf74f0cdbfae90bd/contract';
+import endContract from '../../snapshots/f50fb5acc2eb030d32c09f383019c1e577e1a57d6ddb1b97cf74f0cdbfae90bd/contract.json' with { type: 'json' };
 import { Migration, MigrationCLI, col, fn, lit, primaryKey } from '@prisma/orm-postgres/migration';
 
 export default class M extends Migration<never, End> {
@@ -81,7 +81,7 @@ export default class M extends Migration<never, End> {
           col('createdAt', 'timestamp(3)', {
             notNull: true,
             default: fn('now()'),
-            codecRef: { codecId: 'pg/timestamp-temporal@1', typeParams: { precision: 3 } },
+            codecRef: { codecId: 'pg/timestamp-string@1', typeParams: { precision: 3 } },
           }),
           col('data', 'jsonb', { codecRef: { codecId: 'pg/jsonb@1' } }),
           col('entityId', 'text', { codecRef: { codecId: 'pg/text@1' } }),
@@ -111,7 +111,7 @@ export default class M extends Migration<never, End> {
           col('createdAt', 'timestamp(3)', {
             notNull: true,
             default: fn('now()'),
-            codecRef: { codecId: 'pg/timestamp-temporal@1', typeParams: { precision: 3 } },
+            codecRef: { codecId: 'pg/timestamp-string@1', typeParams: { precision: 3 } },
           }),
           col('diff', 'jsonb', { codecRef: { codecId: 'pg/jsonb@1' } }),
           col('entityId', 'text', { notNull: true, codecRef: { codecId: 'pg/text@1' } }),
@@ -134,7 +134,7 @@ export default class M extends Migration<never, End> {
           col('createdAt', 'timestamp(3)', {
             notNull: true,
             default: fn('now()'),
-            codecRef: { codecId: 'pg/timestamp-temporal@1', typeParams: { precision: 3 } },
+            codecRef: { codecId: 'pg/timestamp-string@1', typeParams: { precision: 3 } },
           }),
           col('emoji', 'text', {
             notNull: true,
@@ -161,16 +161,16 @@ export default class M extends Migration<never, End> {
           col('createdAt', 'timestamp(3)', {
             notNull: true,
             default: fn('now()'),
-            codecRef: { codecId: 'pg/timestamp-temporal@1', typeParams: { precision: 3 } },
+            codecRef: { codecId: 'pg/timestamp-string@1', typeParams: { precision: 3 } },
           }),
           col('deletedAt', 'timestamp(3)', {
-            codecRef: { codecId: 'pg/timestamp-temporal@1', typeParams: { precision: 3 } },
+            codecRef: { codecId: 'pg/timestamp-string@1', typeParams: { precision: 3 } },
           }),
           col('expenseId', 'text', { notNull: true, codecRef: { codecId: 'pg/text@1' } }),
           col('id', 'text', { notNull: true, codecRef: { codecId: 'pg/text@1' } }),
           col('updatedAt', 'timestamp(3)', {
             notNull: true,
-            codecRef: { codecId: 'pg/timestamp-temporal@1', typeParams: { precision: 3 } },
+            codecRef: { codecId: 'pg/timestamp-string@1', typeParams: { precision: 3 } },
           }),
           col('userId', 'text', { notNull: true, codecRef: { codecId: 'pg/text@1' } }),
         ],
@@ -185,7 +185,7 @@ export default class M extends Migration<never, End> {
           col('createdAt', 'timestamp(3)', {
             notNull: true,
             default: fn('now()'),
-            codecRef: { codecId: 'pg/timestamp-temporal@1', typeParams: { precision: 3 } },
+            codecRef: { codecId: 'pg/timestamp-string@1', typeParams: { precision: 3 } },
           }),
           col('createdById', 'text', { notNull: true, codecRef: { codecId: 'pg/text@1' } }),
           col('currency', 'text', {
@@ -195,10 +195,10 @@ export default class M extends Migration<never, End> {
           }),
           col('date', 'timestamp(3)', {
             notNull: true,
-            codecRef: { codecId: 'pg/timestamp-temporal@1', typeParams: { precision: 3 } },
+            codecRef: { codecId: 'pg/timestamp-string@1', typeParams: { precision: 3 } },
           }),
           col('deletedAt', 'timestamp(3)', {
-            codecRef: { codecId: 'pg/timestamp-temporal@1', typeParams: { precision: 3 } },
+            codecRef: { codecId: 'pg/timestamp-string@1', typeParams: { precision: 3 } },
           }),
           col('description', 'text', { notNull: true, codecRef: { codecId: 'pg/text@1' } }),
           col('exchangeRate', 'numeric(18,8)', {
@@ -218,7 +218,7 @@ export default class M extends Migration<never, End> {
           }),
           col('updatedAt', 'timestamp(3)', {
             notNull: true,
-            codecRef: { codecId: 'pg/timestamp-temporal@1', typeParams: { precision: 3 } },
+            codecRef: { codecId: 'pg/timestamp-string@1', typeParams: { precision: 3 } },
           }),
         ],
         constraints: [primaryKey(['id'], { name: 'Expense_pkey' })],
@@ -254,7 +254,7 @@ export default class M extends Migration<never, End> {
         table: 'Group',
         columns: [
           col('archivedAt', 'timestamp(3)', {
-            codecRef: { codecId: 'pg/timestamp-temporal@1', typeParams: { precision: 3 } },
+            codecRef: { codecId: 'pg/timestamp-string@1', typeParams: { precision: 3 } },
           }),
           col('colorKey', 'text', {
             notNull: true,
@@ -264,7 +264,7 @@ export default class M extends Migration<never, End> {
           col('createdAt', 'timestamp(3)', {
             notNull: true,
             default: fn('now()'),
-            codecRef: { codecId: 'pg/timestamp-temporal@1', typeParams: { precision: 3 } },
+            codecRef: { codecId: 'pg/timestamp-string@1', typeParams: { precision: 3 } },
           }),
           col('createdById', 'text', { notNull: true, codecRef: { codecId: 'pg/text@1' } }),
           col('currency', 'text', {
@@ -273,7 +273,7 @@ export default class M extends Migration<never, End> {
             codecRef: { codecId: 'pg/text@1' },
           }),
           col('deletedAt', 'timestamp(3)', {
-            codecRef: { codecId: 'pg/timestamp-temporal@1', typeParams: { precision: 3 } },
+            codecRef: { codecId: 'pg/timestamp-string@1', typeParams: { precision: 3 } },
           }),
           col('description', 'text', { codecRef: { codecId: 'pg/text@1' } }),
           col('emoji', 'text', {
@@ -295,7 +295,7 @@ export default class M extends Migration<never, End> {
           }),
           col('updatedAt', 'timestamp(3)', {
             notNull: true,
-            codecRef: { codecId: 'pg/timestamp-temporal@1', typeParams: { precision: 3 } },
+            codecRef: { codecId: 'pg/timestamp-string@1', typeParams: { precision: 3 } },
           }),
         ],
         constraints: [primaryKey(['id'], { name: 'Group_pkey' })],
@@ -309,10 +309,10 @@ export default class M extends Migration<never, End> {
           col('joinedAt', 'timestamp(3)', {
             notNull: true,
             default: fn('now()'),
-            codecRef: { codecId: 'pg/timestamp-temporal@1', typeParams: { precision: 3 } },
+            codecRef: { codecId: 'pg/timestamp-string@1', typeParams: { precision: 3 } },
           }),
           col('leftAt', 'timestamp(3)', {
-            codecRef: { codecId: 'pg/timestamp-temporal@1', typeParams: { precision: 3 } },
+            codecRef: { codecId: 'pg/timestamp-string@1', typeParams: { precision: 3 } },
           }),
           col('nickname', 'text', { codecRef: { codecId: 'pg/text@1' } }),
           col('role', '"MemberRole"', {
@@ -332,17 +332,17 @@ export default class M extends Migration<never, End> {
           col('createdAt', 'timestamp(3)', {
             notNull: true,
             default: fn('now()'),
-            codecRef: { codecId: 'pg/timestamp-temporal@1', typeParams: { precision: 3 } },
+            codecRef: { codecId: 'pg/timestamp-string@1', typeParams: { precision: 3 } },
           }),
           col('createdById', 'text', { notNull: true, codecRef: { codecId: 'pg/text@1' } }),
           col('expiresAt', 'timestamp(3)', {
-            codecRef: { codecId: 'pg/timestamp-temporal@1', typeParams: { precision: 3 } },
+            codecRef: { codecId: 'pg/timestamp-string@1', typeParams: { precision: 3 } },
           }),
           col('groupId', 'text', { notNull: true, codecRef: { codecId: 'pg/text@1' } }),
           col('id', 'text', { notNull: true, codecRef: { codecId: 'pg/text@1' } }),
           col('maxUses', 'int4', { codecRef: { codecId: 'pg/int4@1' } }),
           col('revokedAt', 'timestamp(3)', {
-            codecRef: { codecId: 'pg/timestamp-temporal@1', typeParams: { precision: 3 } },
+            codecRef: { codecId: 'pg/timestamp-string@1', typeParams: { precision: 3 } },
           }),
           col('token', 'text', { notNull: true, codecRef: { codecId: 'pg/text@1' } }),
           col('useCount', 'int4', {
@@ -361,7 +361,7 @@ export default class M extends Migration<never, End> {
           col('createdAt', 'timestamp(3)', {
             notNull: true,
             default: fn('now()'),
-            codecRef: { codecId: 'pg/timestamp-temporal@1', typeParams: { precision: 3 } },
+            codecRef: { codecId: 'pg/timestamp-string@1', typeParams: { precision: 3 } },
           }),
           col('data', 'jsonb', { codecRef: { codecId: 'pg/jsonb@1' } }),
           col('entityId', 'text', { codecRef: { codecId: 'pg/text@1' } }),
@@ -370,7 +370,7 @@ export default class M extends Migration<never, End> {
           col('href', 'text', { codecRef: { codecId: 'pg/text@1' } }),
           col('id', 'text', { notNull: true, codecRef: { codecId: 'pg/text@1' } }),
           col('readAt', 'timestamp(3)', {
-            codecRef: { codecId: 'pg/timestamp-temporal@1', typeParams: { precision: 3 } },
+            codecRef: { codecId: 'pg/timestamp-string@1', typeParams: { precision: 3 } },
           }),
           col('title', 'text', { notNull: true, codecRef: { codecId: 'pg/text@1' } }),
           col('type', '"EventType"', {
@@ -389,7 +389,7 @@ export default class M extends Migration<never, End> {
           col('createdAt', 'timestamp(3)', {
             notNull: true,
             default: fn('now()'),
-            codecRef: { codecId: 'pg/timestamp-temporal@1', typeParams: { precision: 3 } },
+            codecRef: { codecId: 'pg/timestamp-string@1', typeParams: { precision: 3 } },
           }),
           col('endpoint', 'text', { notNull: true, codecRef: { codecId: 'pg/text@1' } }),
           col('failureCount', 'int4', {
@@ -401,7 +401,7 @@ export default class M extends Migration<never, End> {
           col('lastSeenAt', 'timestamp(3)', {
             notNull: true,
             default: fn('now()'),
-            codecRef: { codecId: 'pg/timestamp-temporal@1', typeParams: { precision: 3 } },
+            codecRef: { codecId: 'pg/timestamp-string@1', typeParams: { precision: 3 } },
           }),
           col('p256dh', 'text', { notNull: true, codecRef: { codecId: 'pg/text@1' } }),
           col('userAgent', 'text', { codecRef: { codecId: 'pg/text@1' } }),
@@ -419,7 +419,7 @@ export default class M extends Migration<never, End> {
           col('createdAt', 'timestamp(3)', {
             notNull: true,
             default: fn('now()'),
-            codecRef: { codecId: 'pg/timestamp-temporal@1', typeParams: { precision: 3 } },
+            codecRef: { codecId: 'pg/timestamp-string@1', typeParams: { precision: 3 } },
           }),
           col('createdById', 'text', { notNull: true, codecRef: { codecId: 'pg/text@1' } }),
           col('currency', 'text', {
@@ -428,11 +428,11 @@ export default class M extends Migration<never, End> {
             codecRef: { codecId: 'pg/text@1' },
           }),
           col('deletedAt', 'timestamp(3)', {
-            codecRef: { codecId: 'pg/timestamp-temporal@1', typeParams: { precision: 3 } },
+            codecRef: { codecId: 'pg/timestamp-string@1', typeParams: { precision: 3 } },
           }),
           col('description', 'text', { notNull: true, codecRef: { codecId: 'pg/text@1' } }),
           col('endDate', 'timestamp(3)', {
-            codecRef: { codecId: 'pg/timestamp-temporal@1', typeParams: { precision: 3 } },
+            codecRef: { codecId: 'pg/timestamp-string@1', typeParams: { precision: 3 } },
           }),
           col('frequency', '"RecurrenceFreq"', {
             notNull: true,
@@ -451,11 +451,11 @@ export default class M extends Migration<never, End> {
             codecRef: { codecId: 'pg/bool@1' },
           }),
           col('lastRunAt', 'timestamp(3)', {
-            codecRef: { codecId: 'pg/timestamp-temporal@1', typeParams: { precision: 3 } },
+            codecRef: { codecId: 'pg/timestamp-string@1', typeParams: { precision: 3 } },
           }),
           col('nextRunAt', 'timestamp(3)', {
             notNull: true,
-            codecRef: { codecId: 'pg/timestamp-temporal@1', typeParams: { precision: 3 } },
+            codecRef: { codecId: 'pg/timestamp-string@1', typeParams: { precision: 3 } },
           }),
           col('notes', 'text', { codecRef: { codecId: 'pg/text@1' } }),
           col('payerConfig', 'jsonb', { notNull: true, codecRef: { codecId: 'pg/jsonb@1' } }),
@@ -467,11 +467,11 @@ export default class M extends Migration<never, End> {
           }),
           col('startDate', 'timestamp(3)', {
             notNull: true,
-            codecRef: { codecId: 'pg/timestamp-temporal@1', typeParams: { precision: 3 } },
+            codecRef: { codecId: 'pg/timestamp-string@1', typeParams: { precision: 3 } },
           }),
           col('updatedAt', 'timestamp(3)', {
             notNull: true,
-            codecRef: { codecId: 'pg/timestamp-temporal@1', typeParams: { precision: 3 } },
+            codecRef: { codecId: 'pg/timestamp-string@1', typeParams: { precision: 3 } },
           }),
           col('weekday', 'int4', { codecRef: { codecId: 'pg/int4@1' } }),
         ],
@@ -487,12 +487,12 @@ export default class M extends Migration<never, End> {
           col('ranAt', 'timestamp(3)', {
             notNull: true,
             default: fn('now()'),
-            codecRef: { codecId: 'pg/timestamp-temporal@1', typeParams: { precision: 3 } },
+            codecRef: { codecId: 'pg/timestamp-string@1', typeParams: { precision: 3 } },
           }),
           col('recurringExpenseId', 'text', { notNull: true, codecRef: { codecId: 'pg/text@1' } }),
           col('scheduledFor', 'timestamp(3)', {
             notNull: true,
-            codecRef: { codecId: 'pg/timestamp-temporal@1', typeParams: { precision: 3 } },
+            codecRef: { codecId: 'pg/timestamp-string@1', typeParams: { precision: 3 } },
           }),
         ],
         constraints: [primaryKey(['id'], { name: 'RecurringRun_pkey' })],
@@ -505,7 +505,7 @@ export default class M extends Migration<never, End> {
           col('createdAt', 'timestamp(3)', {
             notNull: true,
             default: fn('now()'),
-            codecRef: { codecId: 'pg/timestamp-temporal@1', typeParams: { precision: 3 } },
+            codecRef: { codecId: 'pg/timestamp-string@1', typeParams: { precision: 3 } },
           }),
           col('createdById', 'text', { notNull: true, codecRef: { codecId: 'pg/text@1' } }),
           col('currency', 'text', {
@@ -515,10 +515,10 @@ export default class M extends Migration<never, End> {
           }),
           col('date', 'timestamp(3)', {
             notNull: true,
-            codecRef: { codecId: 'pg/timestamp-temporal@1', typeParams: { precision: 3 } },
+            codecRef: { codecId: 'pg/timestamp-string@1', typeParams: { precision: 3 } },
           }),
           col('deletedAt', 'timestamp(3)', {
-            codecRef: { codecId: 'pg/timestamp-temporal@1', typeParams: { precision: 3 } },
+            codecRef: { codecId: 'pg/timestamp-string@1', typeParams: { precision: 3 } },
           }),
           col('exchangeRate', 'numeric(18,8)', {
             notNull: true,
@@ -537,7 +537,7 @@ export default class M extends Migration<never, End> {
           col('toUserId', 'text', { notNull: true, codecRef: { codecId: 'pg/text@1' } }),
           col('updatedAt', 'timestamp(3)', {
             notNull: true,
-            codecRef: { codecId: 'pg/timestamp-temporal@1', typeParams: { precision: 3 } },
+            codecRef: { codecId: 'pg/timestamp-string@1', typeParams: { precision: 3 } },
           }),
         ],
         constraints: [primaryKey(['id'], { name: 'Settlement_pkey' })],
@@ -550,7 +550,7 @@ export default class M extends Migration<never, End> {
           col('createdAt', 'timestamp(3)', {
             notNull: true,
             default: fn('now()'),
-            codecRef: { codecId: 'pg/timestamp-temporal@1', typeParams: { precision: 3 } },
+            codecRef: { codecId: 'pg/timestamp-string@1', typeParams: { precision: 3 } },
           }),
           col('defaultCurrency', 'text', {
             notNull: true,
@@ -558,7 +558,7 @@ export default class M extends Migration<never, End> {
             codecRef: { codecId: 'pg/text@1' },
           }),
           col('deletedAt', 'timestamp(3)', {
-            codecRef: { codecId: 'pg/timestamp-temporal@1', typeParams: { precision: 3 } },
+            codecRef: { codecId: 'pg/timestamp-string@1', typeParams: { precision: 3 } },
           }),
           col('email', 'text', { notNull: true, codecRef: { codecId: 'pg/text@1' } }),
           col('id', 'text', { notNull: true, codecRef: { codecId: 'pg/text@1' } }),
@@ -586,7 +586,7 @@ export default class M extends Migration<never, End> {
           }),
           col('updatedAt', 'timestamp(3)', {
             notNull: true,
-            codecRef: { codecId: 'pg/timestamp-temporal@1', typeParams: { precision: 3 } },
+            codecRef: { codecId: 'pg/timestamp-string@1', typeParams: { precision: 3 } },
           }),
         ],
         constraints: [primaryKey(['id'], { name: 'User_pkey' })],
