@@ -116,7 +116,7 @@ export function AppShell({
               <TabLink key={item.href} item={item} active={isActive(item.href)} />
             ))}
 
-          <NewExpenseButton groups={groups} variant="fab">
+          <NewExpenseButton groups={groups}>
             <span className="flex size-12 -translate-y-3 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-lg shadow-primary/25 transition-transform active:scale-95">
               <Plus className="size-6" />
               <span className="sr-only">Add an expense</span>

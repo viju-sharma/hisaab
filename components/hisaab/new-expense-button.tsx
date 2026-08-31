@@ -20,11 +20,11 @@ import type { ShellGroup } from "@/components/shell/app-shell"
 /// With exactly one group there is nothing to ask, so it goes straight there.
 export function NewExpenseButton({
   groups,
-  variant = "icon",
   children,
 }: {
   groups: ShellGroup[]
-  variant?: "icon" | "fab"
+  /// The caller supplies the trigger, so the same behaviour backs both the
+  /// desktop icon button and the mobile floating action button.
   children?: React.ReactNode
 }) {
   const router = useRouter()
