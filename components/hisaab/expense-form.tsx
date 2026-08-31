@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import { format } from "date-fns"
 import { toast } from "sonner"
 
+import { CategoryIcon } from "@/components/hisaab/category-icon"
 import { MemberAvatar } from "@/components/hisaab/member-avatar"
 import { Money } from "@/components/hisaab/money"
 import { Button } from "@/components/ui/button"
@@ -372,21 +373,21 @@ export function ExpenseForm({
         <div className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1">
           {categories.map((category) => (
             <button
-              key={category.id}
-              type="button"
-              onClick={() =>
-                setCategoryId((current) =>
-                  current === category.id ? "" : category.id
-                )
-              }
-              className={cn(
-                "flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm transition-all active:translate-y-px",
-                categoryId === category.id
-                  ? "border-primary bg-primary/10 text-primary"
-                  : "text-muted-foreground hover:bg-muted"
-              )}
-            >
-              <span aria-hidden>{category.emoji}</span>
+                key={category.id}
+                type="button"
+                onClick={() =>
+                  setCategoryId((current) =>
+                    current === category.id ? "" : category.id
+                  )
+                }
+                className={cn(
+                  "flex shrink-0 items-center gap-1.5 rounded-[0.2rem] border px-2.5 py-1.5 text-sm transition-colors",
+                  categoryId === category.id
+                    ? "border-foreground bg-foreground text-background"
+                    : "text-muted-foreground hover:border-foreground/30 hover:text-foreground"
+                )}
+              >
+              <CategoryIcon categoryKey={category.key} className="size-3.5" />
               {category.label}
             </button>
           ))}

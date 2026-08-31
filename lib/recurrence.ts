@@ -1,4 +1,4 @@
-import type { RecurrenceFreq } from "@/app/generated/prisma/enums"
+import type { RecurrenceFreq } from "@/lib/db-types"
 
 export type RecurrenceRule = {
   frequency: RecurrenceFreq

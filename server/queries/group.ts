@@ -3,7 +3,8 @@ import "server-only"
 import { getOrCreateUser } from "@/lib/auth"
 import { requireGroupMember } from "@/lib/authz"
 import { netBalances, netFor, type GroupLedger } from "@/lib/balance"
-import { prisma } from "@/lib/prisma"
+import { db } from "@/lib/db"
+import { toDateOrNull } from "@/lib/db-time"
 
 export type MemberSummary = {
   userId: string
@@ -14,23 +15,22 @@ export type MemberSummary = {
   nickname: string | null
 }
 
-/// Selects deliberately exclude Decimal columns: they do not serialise across
-/// the server/client boundary, and no read path needs the raw rate.
-const LEDGER_SELECT = {
-  payers: { select: { userId: true, groupAmountMinor: true } },
-  splits: { select: { userId: true, groupAmountMinor: true } },
-} as const
-
+/// Selects deliberately exclude the Numeric columns: no read path needs the raw
+/// exchange rate, and the group-currency figures are already denormalised.
 export async function loadGroupLedger(groupId: string): Promise<GroupLedger> {
   const [expenses, settlements] = await Promise.all([
-    prisma.expense.findMany({
-      where: { groupId, deletedAt: null },
-      select: LEDGER_SELECT,
-    }),
-    prisma.settlement.findMany({
-      where: { groupId, deletedAt: null },
-      select: { fromUserId: true, toUserId: true, groupAmountMinor: true },
-    }),
+    db.orm.public.Expense.where((expense) => expense.groupId.eq(groupId))
+      .where((expense) => expense.deletedAt.isNull())
+      .select("id")
+      .include("payers", (payer) => payer.select("userId", "groupAmountMinor"))
+      .include("splits", (split) => split.select("userId", "groupAmountMinor"))
+      .all(),
+    db.orm.public.Settlement.where((settlement) =>
+      settlement.groupId.eq(groupId)
+    )
+      .where((settlement) => settlement.deletedAt.isNull())
+      .select("fromUserId", "toUserId", "groupAmountMinor")
+      .all(),
   ])
 
   return {
@@ -52,43 +52,54 @@ export async function loadGroupLedger(groupId: string): Promise<GroupLedger> {
   }
 }
 
+/// The viewer's groups. Membership is resolved first and the groups are then
+/// read by id: the ORM has no predicate or ordering across a to-one relation,
+/// so `deletedAt` and the recency sort both belong on the Group query.
 export async function listGroupsForUser() {
   const user = await getOrCreateUser()
 
-  const memberships = await prisma.groupMember.findMany({
-    where: { userId: user.id, leftAt: null, group: { deletedAt: null } },
-    include: {
-      group: {
-        include: {
-          members: {
-            where: { leftAt: null },
-            select: {
-              userId: true,
-              user: { select: { name: true, imageUrl: true } },
-            },
-          },
-          _count: { select: { expenses: { where: { deletedAt: null } } } },
-        },
-      },
-    },
-    orderBy: { group: { updatedAt: "desc" } },
-  })
+  const memberships = await db.orm.public.GroupMember.where((member) =>
+    member.userId.eq(user.id)
+  )
+    .where((member) => member.leftAt.isNull())
+    .select("groupId")
+    .all()
+
+  const groupIds = memberships.map((membership) => membership.groupId)
+  if (groupIds.length === 0) return []
+
+  const groups = await db.orm.public.Group.where((group) =>
+    group.id.in(groupIds)
+  )
+    .where((group) => group.deletedAt.isNull())
+    .select("id", "name", "emoji", "colorKey", "type", "currency", "archivedAt")
+    .include("members", (member) =>
+      member
+        .where((entry) => entry.leftAt.isNull())
+        .select("userId")
+        .include("user", (person) => person.select("name", "imageUrl"))
+    )
+    .include("expenses", (expense) =>
+      expense.where((entry) => entry.deletedAt.isNull()).count()
+    )
+    .orderBy((group) => group.updatedAt.desc())
+    .all()
 
   // One ledger read per group rather than a single join: the balance maths is
   // pure and the group counts here are small.
   return Promise.all(
-    memberships.map(async (membership) => {
-      const ledger = await loadGroupLedger(membership.groupId)
+    groups.map(async (group) => {
+      const ledger = await loadGroupLedger(group.id)
       return {
-        id: membership.group.id,
-        name: membership.group.name,
-        emoji: membership.group.emoji,
-        colorKey: membership.group.colorKey,
-        type: membership.group.type,
-        currency: membership.group.currency,
-        archivedAt: membership.group.archivedAt,
-        expenseCount: membership.group._count.expenses,
-        members: membership.group.members.map((member) => ({
+        id: group.id,
+        name: group.name,
+        emoji: group.emoji,
+        colorKey: group.colorKey,
+        type: group.type,
+        currency: group.currency,
+        archivedAt: toDateOrNull(group.archivedAt),
+        expenseCount: group.expenses,
+        members: group.members.map((member) => ({
           userId: member.userId,
           name: member.user.name ?? "Someone",
           imageUrl: member.user.imageUrl,
@@ -102,29 +113,37 @@ export async function listGroupsForUser() {
 export async function getGroupDetail(groupId: string) {
   const { user, membership } = await requireGroupMember(groupId)
 
-  const group = await prisma.group.findUniqueOrThrow({
-    where: { id: groupId },
-    include: {
-      members: {
-        where: { leftAt: null },
-        orderBy: { joinedAt: "asc" },
-        select: {
-          userId: true,
-          role: true,
-          nickname: true,
-          user: {
-            select: { name: true, email: true, imageUrl: true },
-          },
-        },
-      },
-      inviteCodes: {
-        where: { revokedAt: null },
-        orderBy: { createdAt: "desc" },
-        take: 1,
-        select: { code: true, token: true, expiresAt: true, maxUses: true },
-      },
-    },
-  })
+  const group = await db.orm.public.Group.where((entry) => entry.id.eq(groupId))
+    .select(
+      "id",
+      "name",
+      "description",
+      "emoji",
+      "colorKey",
+      "type",
+      "currency",
+      "simplifyDebts",
+      "archivedAt"
+    )
+    .include("members", (member) =>
+      member
+        .where((entry) => entry.leftAt.isNull())
+        .orderBy((entry) => entry.joinedAt.asc())
+        .select("userId", "role", "nickname")
+        .include("user", (person) => person.select("name", "email", "imageUrl"))
+    )
+    .include("inviteCodes", (invite) =>
+      invite
+        .where((entry) => entry.revokedAt.isNull())
+        .orderBy((entry) => entry.createdAt.desc())
+        .limit(1)
+        .select("code", "token", "expiresAt", "maxUses")
+    )
+    .first()
+
+  // requireGroupMember already proved the row exists and the viewer belongs to
+  // it, so a miss here is a race with a hard delete, not an access decision.
+  if (!group) throw new Error(`Group ${groupId} disappeared mid-read.`)
 
   const members: MemberSummary[] = group.members.map((member) => ({
     userId: member.userId,
@@ -135,6 +154,8 @@ export async function getGroupDetail(groupId: string) {
     nickname: member.nickname,
   }))
 
+  const invite = group.inviteCodes[0]
+
   return {
     id: group.id,
     name: group.name,
@@ -144,9 +165,16 @@ export async function getGroupDetail(groupId: string) {
     type: group.type,
     currency: group.currency,
     simplifyDebts: group.simplifyDebts,
-    archivedAt: group.archivedAt,
+    archivedAt: toDateOrNull(group.archivedAt),
     members,
-    invite: group.inviteCodes[0] ?? null,
+    invite: invite
+      ? {
+          code: invite.code,
+          token: invite.token,
+          expiresAt: toDateOrNull(invite.expiresAt),
+          maxUses: invite.maxUses,
+        }
+      : null,
     viewer: { userId: user.id, role: membership.role },
   }
 }

@@ -19,7 +19,7 @@ export default async function AppLayout({
         .map((group) => ({
           id: group.id,
           name: group.name,
-          emoji: group.emoji,
+          colorKey: group.colorKey,
         }))}
       unreadCount={unreadCount}
     >

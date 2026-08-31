@@ -1,6 +1,7 @@
-import type { EventType } from "@/app/generated/prisma/enums"
+import type { DbTransaction } from "@/lib/db"
+import type { EventType, JsonValue } from "@/lib/db-types"
+import { newId } from "@/lib/id"
 import { log } from "@/lib/observability/logger"
-import type { PrismaTransaction } from "@/lib/prisma"
 
 export type PublishEventInput = {
   groupId?: string | null
@@ -11,7 +12,7 @@ export type PublishEventInput = {
   summary: string
   entityType?: string
   entityId?: string
-  data?: Record<string, unknown>
+  data?: Record<string, JsonValue>
   notify?: {
     /// The actor is filtered out automatically — nobody needs telling about
     /// their own action.
@@ -26,41 +27,43 @@ export type PublishEventInput = {
 /// per recipient. Called inside the mutating transaction so a member can never
 /// see a notification for a change that was rolled back.
 export async function publishEvent(
-  tx: PrismaTransaction,
+  tx: DbTransaction,
   input: PublishEventInput
 ): Promise<string[]> {
-  await tx.activity.create({
-    data: {
-      groupId: input.groupId ?? undefined,
-      actorId: input.actorId,
-      type: input.type,
-      summary: input.summary,
-      entityType: input.entityType,
-      entityId: input.entityId,
-      data: input.data as object | undefined,
-    },
+  await tx.orm.public.Activity.create({
+    id: newId(),
+    groupId: input.groupId ?? null,
+    actorId: input.actorId,
+    type: input.type,
+    summary: input.summary,
+    entityType: input.entityType ?? null,
+    entityId: input.entityId ?? null,
+    data: input.data ?? null,
   })
 
   if (!input.notify) return []
 
-  const recipients = [...new Set(input.notify.userIds)].filter(
+  const notify = input.notify
+  const recipients = [...new Set(notify.userIds)].filter(
     (userId) => userId !== input.actorId
   )
   if (recipients.length === 0) return []
 
-  await tx.notification.createMany({
-    data: recipients.map((userId) => ({
+  await tx.orm.public.Notification.createAll(
+    recipients.map((userId) => ({
+      id: newId(),
       userId,
-      groupId: input.groupId ?? undefined,
+      groupId: input.groupId ?? null,
       type: input.type,
-      title: input.notify!.title,
-      body: input.notify!.body,
-      href: input.notify!.href,
-      entityType: input.entityType,
-      entityId: input.entityId,
-      data: input.data as object | undefined,
-    })),
-  })
+      title: notify.title,
+      body: notify.body ?? null,
+      href: notify.href ?? null,
+      entityType: input.entityType ?? null,
+      entityId: input.entityId ?? null,
+      data: input.data ?? null,
+      readAt: null,
+    }))
+  )
 
   log.info("event.published", {
     type: input.type,

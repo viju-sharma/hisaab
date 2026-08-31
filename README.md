@@ -7,15 +7,29 @@ first, installable as a PWA, with a full audit trail.
 ## Getting started
 
 ```bash
+nvm use                       # Node 22.18+, required by @prisma/orm-postgres
 pnpm install
 cp .env.example .env          # fill in DATABASE_URL and the Clerk keys
-pnpm prisma migrate deploy    # or `pnpm db:migrate` in development
+pnpm db:emit                  # contract.json + contract.d.ts from the contract
+pnpm db:migrate               # apply any pending migrations
 pnpm db:seed                  # 17 shared expense categories
 pnpm dev
 ```
 
-`prisma7.config.ts` is the default config filename in Prisma 7 and is
-auto-detected — no `--config` flag is needed.
+The data layer is **Prisma 8**. `prisma8/contract.prisma` is the source of
+truth; `prisma contract emit` derives `generated/prisma8/contract.json` and
+`contract.d.ts` from it, and the migration planner diffs the contract to work
+out the DDL. Both generated files are artefacts — edit the contract, never them.
+
+Two things Prisma 8 does not give you that Prisma 7 did, both handled at the
+data boundary rather than sprinkled through the app:
+
+- **No `Date` codec.** `timestamp(3)` columns are carried as Postgres' own text
+  form; `lib/db-time.ts` is the only place that crosses to `Date`, so date-fns,
+  zod and the recurrence engine keep working in `Date`. It also supplies
+  `updatedAt` on every write, which `@updatedAt` used to do.
+- **No `cuid()` default.** `lib/id.ts` mints cuid v1 ids in the same shape
+  Prisma 7 produced, so new rows are indistinguishable from the existing ones.
 
 ## How it fits together
 
@@ -38,10 +52,12 @@ docs are explicit that proxy is not an authorisation mechanism.
 
 **One gesture produces one trace.** `proxy.ts` mints a trace ID and stamps it on
 the request headers; server entry points read it back into an AsyncLocalStorage
-store (`lib/observability/`). Every log line, every Prisma query span and every
-audit row carries it, so a single `grep` reconstructs the whole event flow.
-Audit rows are written inside the mutating transaction — never from the Prisma
-extension, which cannot see the before-state and would recurse.
+store (`lib/observability/`). Every log line, every database query span and
+every audit row carries it, so a single `grep` reconstructs the whole event
+flow. Query spans come from a runtime middleware
+(`lib/observability/db-tracing.ts`) registered on the client. Audit rows are
+written inside the mutating transaction — never from the middleware, which
+cannot see the before-state.
 
 ## Commands
 
@@ -51,7 +67,10 @@ extension, which cannot see the before-state and would recurse.
 | `pnpm build` | Production build |
 | `pnpm test` | Unit tests for money, splits, balances and recurrence |
 | `pnpm typecheck` / `pnpm lint` | Types and lint |
-| `pnpm db:migrate` / `db:deploy` / `db:seed` / `db:studio` | Prisma |
+| `pnpm db:emit` | Re-derive the contract artefacts after editing `prisma8/contract.prisma` |
+| `pnpm db:plan --name <slug>` | Plan a migration from the contract diff |
+| `pnpm db:migrate` | Apply pending migrations and advance the `db` ref |
+| `pnpm db:verify` / `pnpm db:seed` | Check the live schema against the contract; seed categories |
 
 ## Scheduled work
 

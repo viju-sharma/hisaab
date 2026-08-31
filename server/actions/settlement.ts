@@ -7,8 +7,11 @@ import { ActionError, defineAction } from "@/lib/action"
 import { requireGroupMember } from "@/lib/authz"
 import { publishEvent } from "@/lib/events"
 import { convertMinor, formatMoney } from "@/lib/money"
+import { db } from "@/lib/db"
+import { toExchangeRate } from "@/lib/db-decimal"
+import { fromDate, now } from "@/lib/db-time"
+import { newId } from "@/lib/id"
 import { recordAudit } from "@/lib/observability/audit"
-import { prisma } from "@/lib/prisma"
 import { sendPushToUsers } from "@/lib/push"
 import { settlementSchema } from "@/lib/validation"
 import { z } from "zod"
@@ -23,43 +26,47 @@ export const recordSettlement = defineAction(
       throw new ActionError("A payment needs two different people.")
     }
 
-    const group = await prisma.group.findUniqueOrThrow({
-      where: { id: input.groupId },
-      select: { name: true, currency: true },
-    })
+    const group = await db.orm.public.Group.where((entry) =>
+      entry.id.eq(input.groupId)
+    )
+      .select("name", "currency")
+      .first()
+    if (!group) throw new ActionError("That group no longer exists.")
 
-    const members = await prisma.groupMember.findMany({
-      where: {
-        groupId: input.groupId,
-        userId: { in: [input.fromUserId, input.toUserId] },
-        leftAt: null,
-      },
-      select: { userId: true, user: { select: { name: true } } },
-    })
+    const members = await db.orm.public.GroupMember.where((member) =>
+      member.groupId.eq(input.groupId)
+    )
+      .where((member) => member.userId.in([input.fromUserId, input.toUserId]))
+      .where((member) => member.leftAt.isNull())
+      .select("userId")
+      .all()
     if (members.length !== 2) {
       throw new ActionError("Both people need to be members of this group.")
     }
 
-    const settlement = await prisma.$transaction(async (tx) => {
-      const created = await tx.settlement.create({
-        data: {
-          groupId: input.groupId,
-          fromUserId: input.fromUserId,
-          toUserId: input.toUserId,
-          currency: input.currency,
-          amountMinor: input.amountMinor,
-          exchangeRate: input.exchangeRate,
-          groupAmountMinor: convertMinor(
-            input.amountMinor,
-            input.currency,
-            group.currency,
-            input.exchangeRate
-          ),
-          method: input.method,
-          date: input.date,
-          note: input.note || null,
-          createdById: user.id,
-        },
+    const settlement = await db.transaction(async (tx) => {
+      const timestamp = now()
+      const created = await tx.orm.public.Settlement.create({
+        id: newId(),
+        groupId: input.groupId,
+        fromUserId: input.fromUserId,
+        toUserId: input.toUserId,
+        currency: input.currency,
+        amountMinor: input.amountMinor,
+        exchangeRate: toExchangeRate(input.exchangeRate),
+        groupAmountMinor: convertMinor(
+          input.amountMinor,
+          input.currency,
+          group.currency,
+          input.exchangeRate
+        ),
+        method: input.method,
+        date: fromDate(input.date),
+        note: input.note || null,
+        createdById: user.id,
+        createdAt: timestamp,
+        updatedAt: timestamp,
+        deletedAt: null,
       })
 
       await recordAudit(tx, {
@@ -112,17 +119,19 @@ export const deleteSettlement = defineAction(
   "settlement.delete",
   z.object({ settlementId: z.string().min(1) }),
   async ({ settlementId }, user) => {
-    const settlement = await prisma.settlement.findUniqueOrThrow({
-      where: { id: settlementId },
-    })
+    const settlement = await db.orm.public.Settlement.where((entry) =>
+      entry.id.eq(settlementId)
+    ).first()
+    if (!settlement) throw new ActionError("That payment no longer exists.")
     await requireGroupMember(settlement.groupId)
-    if (settlement.deletedAt) throw new ActionError("That payment is already deleted.")
+    if (settlement.deletedAt)
+      throw new ActionError("That payment is already deleted.")
 
-    await prisma.$transaction(async (tx) => {
-      const updated = await tx.settlement.update({
-        where: { id: settlementId },
-        data: { deletedAt: new Date() },
-      })
+    await db.transaction(async (tx) => {
+      const timestamp = now()
+      const updated = await tx.orm.public.Settlement.where((entry) =>
+        entry.id.eq(settlementId)
+      ).update({ deletedAt: timestamp, updatedAt: timestamp })
       await recordAudit(tx, {
         action: "DELETE",
         entityType: "Settlement",

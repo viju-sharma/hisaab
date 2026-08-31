@@ -50,7 +50,7 @@ export default async function ActivityPage() {
                       href={`/groups/${entry.groupId}`}
                       className="hover:text-foreground hover:underline"
                     >
-                      {entry.group.emoji} {entry.group.name}
+                      {entry.group.name}
                     </Link>
                   ) : null}
                   {" · "}

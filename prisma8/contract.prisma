@@ -1,0 +1,453 @@
+// use prisma-next
+// Contract inferred from the live database schema. Edit as needed, then run `prisma contract emit`.
+
+namespace public {
+
+
+
+
+
+  model User {
+    id                    String             @id(map: "User_pkey")
+    clerkId               String
+    email                 String
+    name                  String?
+    imageUrl              String?
+    defaultCurrency       String             @default("INR")
+    locale                String             @default("en-IN")
+    timezone              String             @default("Asia/Kolkata")
+    remindersEnabled      Boolean            @default(true)
+    pushEnabled           Boolean            @default(true)
+    createdAt             TimestampString(3)       @default(now())
+    updatedAt             TimestampString(3)
+    deletedAt             TimestampString(3)?
+    activities            Activity[]
+    auditLogs             AuditLog[]
+    comments              Comment[]
+    expensesCreated       Expense[]
+    expensePayments       ExpensePayer[]
+    expenseSplits         ExpenseSplit[]
+    createdGroups         Group[]
+    memberships           GroupMember[]
+    invitesCreated        InviteCode[]
+    notifications         Notification[]
+    pushSubscriptions     PushSubscription[]
+    recurringCreated      RecurringExpense[]
+    settlementsLogged     Settlement[]       @relation(name: "Settlement_createdById_fkey")
+    settlementsFrom       Settlement[]       @relation(name: "Settlement_fromUserId_fkey")
+    settlementsTo         Settlement[]       @relation(name: "Settlement_toUserId_fkey")
+
+    @@index([clerkId], map: "User_clerkId_key", unique: true)
+    @@index([deletedAt], map: "User_deletedAt_idx")
+    @@index([email], map: "User_email_key", unique: true)
+
+    @@map("User")
+  }
+
+  model Group {
+    id                String             @id(map: "Group_pkey")
+    name              String
+    description       String?
+    type              pg.enum(GroupType) @default("OTHER")
+    emoji             String             @default("🧾")
+    colorKey          String             @default("ink")
+    currency          String             @default("INR")
+    simplifyDebts     Boolean            @default(true)
+    createdById       String
+    createdAt         TimestampString(3)       @default(now())
+    updatedAt         TimestampString(3)
+    archivedAt        TimestampString(3)?
+    deletedAt         TimestampString(3)?
+    activities        Activity[]
+    categories        Category[]
+    expenses          Expense[]
+    members           GroupMember[]
+    inviteCodes       InviteCode[]
+    recurring         RecurringExpense[]
+    settlements       Settlement[]
+    createdBy         User               @relation(fields: [createdById], references: [id], onDelete: Restrict, onUpdate: Cascade, map: "Group_createdById_fkey")
+
+    @@index([createdById], map: "Group_createdById_idx")
+    @@index([deletedAt], map: "Group_deletedAt_idx")
+
+    @@map("Group")
+  }
+
+  model Activity {
+    id         String             @id(map: "Activity_pkey")
+    groupId    String?
+    actorId    String
+    type       pg.enum(EventType)
+    summary    String
+    data       Jsonb?
+    entityType String?
+    entityId   String?
+    createdAt  TimestampString(3)       @default(now())
+    actor      User               @relation(fields: [actorId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "Activity_actorId_fkey", index: false)
+    group      Group?             @relation(fields: [groupId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "Activity_groupId_fkey", index: false)
+
+    @@index([actorId, createdAt], map: "Activity_actorId_createdAt_idx")
+    @@index([groupId, createdAt], map: "Activity_groupId_createdAt_idx")
+
+    @@map("Activity")
+  }
+
+  model AuditLog {
+    id           String               @id(map: "AuditLog_pkey")
+    traceId      String
+    requestId    String?
+    actorUserId  String?
+    actorClerkId String?
+    groupId      String?
+    action       pg.enum(AuditAction)
+    entityType   String
+    entityId     String
+    before       Jsonb?
+    after        Jsonb?
+    diff         Jsonb?
+    route        String?
+    ip           String?
+    userAgent    String?
+    createdAt    TimestampString(3)         @default(now())
+    actorUser    User?                @relation(fields: [actorUserId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "AuditLog_actorUserId_fkey", index: false)
+
+    @@index([actorUserId, createdAt], map: "AuditLog_actorUserId_createdAt_idx")
+    @@index([entityType, entityId], map: "AuditLog_entityType_entityId_idx")
+    @@index([groupId, createdAt], map: "AuditLog_groupId_createdAt_idx")
+    @@index([traceId], map: "AuditLog_traceId_idx")
+
+    @@map("AuditLog")
+  }
+
+  model Category {
+    id                String             @id(map: "Category_pkey")
+    groupId           String?
+    key               String
+    label             String
+    emoji             String             @default("🏷️")
+    color             String?
+    sortOrder         Int                @default(0)
+    createdAt         TimestampString(3)       @default(now())
+    expenses          Expense[]
+    recurring         RecurringExpense[]
+    group             Group?             @relation(fields: [groupId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "Category_groupId_fkey")
+
+    @@index([groupId], map: "Category_groupId_idx")
+    @@index([groupId, key], map: "Category_groupId_key_key", unique: true)
+
+    @@map("Category")
+  }
+
+  model RecurringExpense {
+    id            String                  @id(map: "RecurringExpense_pkey")
+    groupId       String
+    description   String
+    notes         String?
+    categoryId    String?
+    currency      String                  @default("INR")
+    amountMinor   Int
+    splitMethod   pg.enum(SplitMethod)    @default("EQUAL")
+    payerConfig   Jsonb
+    splitConfig   Jsonb
+    frequency     pg.enum(RecurrenceFreq)
+    interval      Int                     @default(1)
+    anchorDay     Int?
+    weekday       Int?
+    startDate     TimestampString(3)
+    endDate       TimestampString(3)?
+    nextRunAt     TimestampString(3)
+    lastRunAt     TimestampString(3)?
+    isPaused      Boolean                 @default(false)
+    createdById   String
+    createdAt     TimestampString(3)            @default(now())
+    updatedAt     TimestampString(3)
+    deletedAt     TimestampString(3)?
+    generated     Expense[]
+    runs          RecurringRun[]
+    category      Category?               @relation(fields: [categoryId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "RecurringExpense_categoryId_fkey", index: false)
+    createdBy     User                    @relation(fields: [createdById], references: [id], onDelete: Restrict, onUpdate: Cascade, map: "RecurringExpense_createdById_fkey", index: false)
+    group         Group                   @relation(fields: [groupId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "RecurringExpense_groupId_fkey")
+
+    @@index([groupId], map: "RecurringExpense_groupId_idx")
+    @@index([isPaused, deletedAt, nextRunAt], map: "RecurringExpense_isPaused_deletedAt_nextRunAt_idx")
+
+    @@map("RecurringExpense")
+  }
+
+  model Expense {
+    id                 String               @id(map: "Expense_pkey")
+    groupId            String
+    description        String
+    notes              String?
+    categoryId         String?
+    currency           String               @default("INR")
+    amountMinor        Int
+    exchangeRate       Numeric(18, 8)
+    groupAmountMinor   Int
+    date               TimestampString(3)
+    splitMethod        pg.enum(SplitMethod) @default("EQUAL")
+    createdById        String
+    recurringExpenseId String?
+    receiptUrl         String?
+    createdAt          TimestampString(3)         @default(now())
+    updatedAt          TimestampString(3)
+    deletedAt          TimestampString(3)?
+    comments           Comment[]
+    payers             ExpensePayer[]
+    splits             ExpenseSplit[]
+    category           Category?            @relation(fields: [categoryId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "Expense_categoryId_fkey", index: false)
+    createdBy          User                 @relation(fields: [createdById], references: [id], onDelete: Restrict, onUpdate: Cascade, map: "Expense_createdById_fkey")
+    group              Group                @relation(fields: [groupId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "Expense_groupId_fkey", index: false)
+    recurring          RecurringExpense?    @relation(fields: [recurringExpenseId], references: [id], onDelete: SetNull, onUpdate: Cascade, map: "Expense_recurringExpenseId_fkey")
+
+    @@index([createdById], map: "Expense_createdById_idx")
+    @@index([groupId, deletedAt, date], map: "Expense_groupId_deletedAt_date_idx")
+    @@index([recurringExpenseId], map: "Expense_recurringExpenseId_idx")
+
+    @@map("Expense")
+  }
+
+  model Comment {
+    id        String        @id(map: "Comment_pkey")
+    expenseId String
+    userId    String
+    body      String
+    createdAt TimestampString(3)  @default(now())
+    updatedAt TimestampString(3)
+    deletedAt TimestampString(3)?
+    expense   Expense       @relation(fields: [expenseId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "Comment_expenseId_fkey", index: false)
+    user      User          @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "Comment_userId_fkey", index: false)
+
+    @@index([expenseId, createdAt], map: "Comment_expenseId_createdAt_idx")
+
+    @@map("Comment")
+  }
+
+  model ExpensePayer {
+    id               String  @id(map: "ExpensePayer_pkey")
+    expenseId        String
+    userId           String
+    amountMinor      Int
+    groupAmountMinor Int
+    expense          Expense @relation(fields: [expenseId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "ExpensePayer_expenseId_fkey", index: false)
+    user             User    @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "ExpensePayer_userId_fkey")
+
+    @@index([expenseId, userId], map: "ExpensePayer_expenseId_userId_key", unique: true)
+    @@index([userId], map: "ExpensePayer_userId_idx")
+
+    @@map("ExpensePayer")
+  }
+
+  model ExpenseSplit {
+    id               String  @id(map: "ExpenseSplit_pkey")
+    expenseId        String
+    userId           String
+    amountMinor      Int
+    weight           Int?
+    percentBp        Int?
+    groupAmountMinor Int
+    expense          Expense @relation(fields: [expenseId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "ExpenseSplit_expenseId_fkey", index: false)
+    user             User    @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "ExpenseSplit_userId_fkey")
+
+    @@index([expenseId, userId], map: "ExpenseSplit_expenseId_userId_key", unique: true)
+    @@index([userId], map: "ExpenseSplit_userId_idx")
+
+    @@map("ExpenseSplit")
+  }
+
+  model GroupMember {
+    id       String              @id(map: "GroupMember_pkey")
+    groupId  String
+    userId   String
+    role     pg.enum(MemberRole) @default("MEMBER")
+    nickname String?
+    joinedAt TimestampString(3)        @default(now())
+    leftAt   TimestampString(3)?
+    group    Group               @relation(fields: [groupId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "GroupMember_groupId_fkey", index: false)
+    user     User                @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "GroupMember_userId_fkey", index: false)
+
+    @@index([groupId, leftAt], map: "GroupMember_groupId_leftAt_idx")
+    @@index([groupId, userId], map: "GroupMember_groupId_userId_key", unique: true)
+    @@index([userId, leftAt], map: "GroupMember_userId_leftAt_idx")
+
+    @@map("GroupMember")
+  }
+
+  model InviteCode {
+    id          String        @id(map: "InviteCode_pkey")
+    groupId     String
+    code        String
+    token       String
+    createdById String
+    expiresAt   TimestampString(3)?
+    maxUses     Int?
+    useCount    Int           @default(0)
+    revokedAt   TimestampString(3)?
+    createdAt   TimestampString(3)  @default(now())
+    createdBy   User          @relation(fields: [createdById], references: [id], onDelete: Restrict, onUpdate: Cascade, map: "InviteCode_createdById_fkey", index: false)
+    group       Group         @relation(fields: [groupId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "InviteCode_groupId_fkey", index: false)
+
+    @@index([code], map: "InviteCode_code_key", unique: true)
+    @@index([groupId, revokedAt], map: "InviteCode_groupId_revokedAt_idx")
+    @@index([token], map: "InviteCode_token_key", unique: true)
+
+    @@map("InviteCode")
+  }
+
+  model Notification {
+    id         String             @id(map: "Notification_pkey")
+    userId     String
+    groupId    String?
+    type       pg.enum(EventType)
+    title      String
+    body       String?
+    href       String?
+    data       Jsonb?
+    entityType String?
+    entityId   String?
+    readAt     TimestampString(3)?
+    createdAt  TimestampString(3)       @default(now())
+    user       User               @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "Notification_userId_fkey", index: false)
+
+    @@index([groupId], map: "Notification_groupId_idx")
+    @@index([userId, createdAt], map: "Notification_userId_createdAt_idx")
+    @@index([userId, readAt], map: "Notification_userId_readAt_idx")
+
+    @@map("Notification")
+  }
+
+
+  model PushSubscription {
+    id           String       @id(map: "PushSubscription_pkey")
+    userId       String
+    endpoint     String
+    p256dh       String
+    auth         String
+    userAgent    String?
+    failureCount Int          @default(0)
+    createdAt    TimestampString(3) @default(now())
+    lastSeenAt   TimestampString(3) @default(now())
+    user         User         @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "PushSubscription_userId_fkey")
+
+    @@index([endpoint], map: "PushSubscription_endpoint_key", unique: true)
+    @@index([userId], map: "PushSubscription_userId_idx")
+
+    @@map("PushSubscription")
+  }
+
+  model RecurringRun {
+    id                 String           @id(map: "RecurringRun_pkey")
+    recurringExpenseId String
+    scheduledFor       TimestampString(3)
+    ranAt              TimestampString(3)     @default(now())
+    expenseId          String?
+    error              String?
+    recurringExpense   RecurringExpense @relation(fields: [recurringExpenseId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "RecurringRun_recurringExpenseId_fkey", index: false)
+
+    @@index([recurringExpenseId, scheduledFor], map: "RecurringRun_recurringExpenseId_scheduledFor_key", unique: true)
+    @@index([scheduledFor], map: "RecurringRun_scheduledFor_idx")
+
+    @@map("RecurringRun")
+  }
+
+  model Settlement {
+    id               String                    @id(map: "Settlement_pkey")
+    groupId          String
+    fromUserId       String
+    toUserId         String
+    currency         String                    @default("INR")
+    amountMinor      Int
+    exchangeRate     Numeric(18, 8)
+    groupAmountMinor Int
+    method           pg.enum(SettlementMethod) @default("UPI")
+    date             TimestampString(3)
+    note             String?
+    createdById      String
+    createdAt        TimestampString(3)              @default(now())
+    updatedAt        TimestampString(3)
+    deletedAt        TimestampString(3)?
+    createdBy        User                      @relation(name: "Settlement_createdById_fkey", fields: [createdById], references: [id], onDelete: Restrict, onUpdate: Cascade, map: "Settlement_createdById_fkey", index: false)
+    fromUser         User                      @relation(name: "Settlement_fromUserId_fkey", fields: [fromUserId], references: [id], onDelete: Restrict, onUpdate: Cascade, map: "Settlement_fromUserId_fkey")
+    group            Group                     @relation(fields: [groupId], references: [id], onDelete: Cascade, onUpdate: Cascade, map: "Settlement_groupId_fkey", index: false)
+    toUser           User                      @relation(name: "Settlement_toUserId_fkey", fields: [toUserId], references: [id], onDelete: Restrict, onUpdate: Cascade, map: "Settlement_toUserId_fkey")
+
+    @@index([fromUserId], map: "Settlement_fromUserId_idx")
+    @@index([groupId, deletedAt, date], map: "Settlement_groupId_deletedAt_date_idx")
+    @@index([toUserId], map: "Settlement_toUserId_idx")
+
+    @@map("Settlement")
+  }
+
+  native_enum AuditAction {
+    CREATE = "CREATE"
+    UPDATE = "UPDATE"
+    DELETE = "DELETE"
+    RESTORE = "RESTORE"
+    JOIN = "JOIN"
+    LEAVE = "LEAVE"
+    SETTLE = "SETTLE"
+    INVITE = "INVITE"
+    REVOKE = "REVOKE"
+  }
+
+  native_enum EventType {
+    GROUP_CREATED = "GROUP_CREATED"
+    GROUP_UPDATED = "GROUP_UPDATED"
+    GROUP_ARCHIVED = "GROUP_ARCHIVED"
+    MEMBER_JOINED = "MEMBER_JOINED"
+    MEMBER_LEFT = "MEMBER_LEFT"
+    MEMBER_ROLE_CHANGED = "MEMBER_ROLE_CHANGED"
+    INVITE_CREATED = "INVITE_CREATED"
+    INVITE_REVOKED = "INVITE_REVOKED"
+    EXPENSE_ADDED = "EXPENSE_ADDED"
+    EXPENSE_UPDATED = "EXPENSE_UPDATED"
+    EXPENSE_DELETED = "EXPENSE_DELETED"
+    COMMENT_ADDED = "COMMENT_ADDED"
+    SETTLEMENT_RECORDED = "SETTLEMENT_RECORDED"
+    SETTLEMENT_DELETED = "SETTLEMENT_DELETED"
+    RECURRING_CREATED = "RECURRING_CREATED"
+    RECURRING_UPDATED = "RECURRING_UPDATED"
+    RECURRING_GENERATED = "RECURRING_GENERATED"
+    PAYMENT_REMINDER = "PAYMENT_REMINDER"
+  }
+
+  native_enum GroupType {
+    HOME = "HOME"
+    TRIP = "TRIP"
+    COUPLE = "COUPLE"
+    EVENT = "EVENT"
+    PROJECT = "PROJECT"
+    OTHER = "OTHER"
+  }
+
+  native_enum MemberRole {
+    OWNER = "OWNER"
+    ADMIN = "ADMIN"
+    MEMBER = "MEMBER"
+  }
+
+  native_enum RecurrenceFreq {
+    DAILY = "DAILY"
+    WEEKLY = "WEEKLY"
+    FORTNIGHTLY = "FORTNIGHTLY"
+    MONTHLY = "MONTHLY"
+    QUARTERLY = "QUARTERLY"
+    YEARLY = "YEARLY"
+  }
+
+  native_enum SettlementMethod {
+    CASH = "CASH"
+    UPI = "UPI"
+    BANK_TRANSFER = "BANK_TRANSFER"
+    CARD = "CARD"
+    OTHER = "OTHER"
+  }
+
+  native_enum SplitMethod {
+    EQUAL = "EQUAL"
+    EXACT = "EXACT"
+    PERCENT = "PERCENT"
+    SHARES = "SHARES"
+    ITEMISED = "ITEMISED"
+  }
+}

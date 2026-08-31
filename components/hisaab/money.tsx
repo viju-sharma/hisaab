@@ -77,21 +77,19 @@ export function BalancePill({
 }) {
   const tone =
     minor > 0
-      ? "bg-positive-soft text-positive"
+      ? "text-positive"
       : minor < 0
-        ? "bg-negative-soft text-negative"
-        : "bg-settled-soft text-settled"
+        ? "text-negative"
+        : "text-settled"
 
+  // Flat and square rather than a tinted capsule: the pill was the last piece
+  // of soft-UI language left, and the colour alone carries the meaning.
   return (
     <span
       data-slot="money"
-      className={cn(
-        "tabular inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium",
-        tone,
-        className
-      )}
+      className={cn("tabular text-sm font-medium", tone, className)}
     >
-      {minor === 0 ? "settled" : formatMoney(Math.abs(minor), currency)}
+      {minor === 0 ? "Settled" : formatMoney(Math.abs(minor), currency)}
     </span>
   )
 }

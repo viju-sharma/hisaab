@@ -4,6 +4,7 @@ import { useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 
+import { GroupMark } from "@/components/hisaab/group-mark"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -17,21 +18,22 @@ import {
 import { Switch } from "@/components/ui/switch"
 import { Textarea } from "@/components/ui/textarea"
 import { CURRENCIES } from "@/lib/currency"
+import {
+  GROUP_COLORS,
+  GROUP_COLOR_KEYS,
+  type GroupColorKey,
+} from "@/lib/group-colors"
 import { cn } from "@/lib/utils"
 import { createGroup } from "@/server/actions/group"
 
-/// A short, opinionated set. Picking a type sets a sensible emoji, so most
-/// people never touch the emoji row at all.
 const TYPES = [
-  { value: "HOME", label: "Flat / home", emoji: "🏠" },
-  { value: "TRIP", label: "Trip", emoji: "✈️" },
-  { value: "COUPLE", label: "Couple", emoji: "💞" },
-  { value: "EVENT", label: "Event", emoji: "🎉" },
-  { value: "PROJECT", label: "Project", emoji: "📁" },
-  { value: "OTHER", label: "Something else", emoji: "🧾" },
+  { value: "HOME", label: "Flat / home" },
+  { value: "TRIP", label: "Trip" },
+  { value: "COUPLE", label: "Couple" },
+  { value: "EVENT", label: "Event" },
+  { value: "PROJECT", label: "Project" },
+  { value: "OTHER", label: "Something else" },
 ] as const
-
-const EMOJIS = ["🧾", "🏠", "✈️", "💞", "🎉", "📁", "🍛", "🏖️", "🚗", "🎓"]
 
 export function GroupForm() {
   const router = useRouter()
@@ -40,7 +42,7 @@ export function GroupForm() {
   const [name, setName] = useState("")
   const [description, setDescription] = useState("")
   const [type, setType] = useState<(typeof TYPES)[number]["value"]>("HOME")
-  const [emoji, setEmoji] = useState("🏠")
+  const [colorKey, setColorKey] = useState<GroupColorKey>("ink")
   const [currency, setCurrency] = useState("INR")
   const [simplifyDebts, setSimplifyDebts] = useState(true)
   const [errors, setErrors] = useState<Record<string, string[]>>({})
@@ -54,8 +56,7 @@ export function GroupForm() {
         name,
         description,
         type,
-        emoji,
-        colorKey: "indigo",
+        colorKey,
         currency,
         simplifyDebts,
       })
@@ -76,9 +77,12 @@ export function GroupForm() {
       <div className="space-y-2">
         <Label htmlFor="name">Group name</Label>
         <div className="flex gap-2">
-          <span className="flex size-9 shrink-0 items-center justify-center rounded-lg border bg-muted text-lg">
-            {emoji}
-          </span>
+          <GroupMark
+            name={name || "New group"}
+            colorKey={colorKey}
+            id="preview"
+            className="size-9"
+          />
           <Input
             id="name"
             value={name}
@@ -100,20 +104,14 @@ export function GroupForm() {
             <button
               key={option.value}
               type="button"
-              onClick={() => {
-                setType(option.value)
-                setEmoji(option.emoji)
-              }}
+              onClick={() => setType(option.value)}
               className={cn(
-                "rounded-full border px-3 py-1.5 text-sm transition-all active:translate-y-px",
+                "rounded-[0.2rem] border px-2.5 py-1.5 text-sm transition-colors",
                 type === option.value
-                  ? "border-primary bg-primary/10 text-primary"
-                  : "text-muted-foreground hover:bg-muted"
+                  ? "border-foreground bg-foreground text-background"
+                  : "text-muted-foreground hover:border-foreground/30 hover:text-foreground"
               )}
             >
-              <span aria-hidden className="mr-1">
-                {option.emoji}
-              </span>
               {option.label}
             </button>
           ))}
@@ -121,21 +119,21 @@ export function GroupForm() {
       </div>
 
       <div className="space-y-2">
-        <Label>Icon</Label>
+        <Label>Colour</Label>
         <div className="flex flex-wrap gap-1.5">
-          {EMOJIS.map((option) => (
+          {GROUP_COLOR_KEYS.map((option) => (
             <button
               key={option}
               type="button"
-              onClick={() => setEmoji(option)}
-              aria-pressed={emoji === option}
+              onClick={() => setColorKey(option)}
+              aria-pressed={colorKey === option}
+              aria-label={GROUP_COLORS[option].label}
+              style={{ background: GROUP_COLORS[option].bg }}
               className={cn(
-                "flex size-9 items-center justify-center rounded-lg border text-lg transition-all active:translate-y-px",
-                emoji === option ? "border-primary bg-primary/10" : "hover:bg-muted"
+                "size-7 rounded-[0.2rem] outline-offset-2 transition-all",
+                colorKey === option && "outline-2 outline-foreground"
               )}
-            >
-              {option}
-            </button>
+            />
           ))}
         </div>
       </div>

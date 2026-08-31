@@ -12,6 +12,14 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Emitted by `prisma contract emit` and by the migration planner.
+    "generated/**",
+    "migrations/snapshots/**",
+    // Reference material vendored by `prisma skills sync`.
+    ".claude/skills/**",
+    ".cursor/skills/**",
+    ".agents/skills/**",
+    ".devin/skills/**",
   ]),
 ]);
 

@@ -6,6 +6,7 @@ import { Pencil } from "lucide-react"
 import { CommentBox } from "@/components/hisaab/comment-box"
 import { DeleteExpenseButton } from "@/components/hisaab/delete-expense-button"
 import { MemberAvatar } from "@/components/hisaab/member-avatar"
+import { CategoryIcon } from "@/components/hisaab/category-icon"
 import { Money } from "@/components/hisaab/money"
 import { Button } from "@/components/ui/button"
 import { SectionHeading } from "@/components/hisaab/section-heading"
@@ -30,7 +31,7 @@ export default async function ExpenseDetailPage({
             <p className="flex items-center gap-2 text-sm text-muted-foreground">
               {expense.category ? (
                 <>
-                  <span aria-hidden>{expense.category.emoji}</span>
+                  <CategoryIcon categoryKey={expense.category.key} className="size-3.5" />
                   {expense.category.label}
                 </>
               ) : (

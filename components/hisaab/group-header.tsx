@@ -4,6 +4,7 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { Settings } from "lucide-react"
 
+import { GroupMark } from "@/components/hisaab/group-mark"
 import { BalanceAmount, balanceLabel } from "@/components/hisaab/money"
 import { MemberStack } from "@/components/hisaab/member-avatar"
 import { Button } from "@/components/ui/button"
@@ -12,7 +13,7 @@ import { cn } from "@/lib/utils"
 type Group = {
   id: string
   name: string
-  emoji: string
+  colorKey: string
   currency: string
   archivedAt: Date | null
   members: { userId: string; name: string; imageUrl: string | null }[]
@@ -41,9 +42,12 @@ export function GroupHeader({
     <div className="sticky top-12 z-20 -mx-4 mb-5 border-b bg-background/90 px-4 pt-4 backdrop-blur-md md:static md:top-auto md:mx-0 md:bg-transparent md:px-0 md:pt-0 md:backdrop-blur-none">
       <div className="flex items-start justify-between gap-3">
         <div className="flex min-w-0 items-center gap-3">
-          <span className="text-2xl" aria-hidden>
-            {group.emoji}
-          </span>
+          <GroupMark
+            name={group.name}
+            colorKey={group.colorKey}
+            id={group.id}
+            className="size-10 text-[0.8rem]"
+          />
           <div className="min-w-0">
             <h1 className="truncate font-display text-xl tracking-tight">
               {group.name}

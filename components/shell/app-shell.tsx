@@ -6,6 +6,7 @@ import { UserButton } from "@clerk/nextjs"
 import { Plus } from "lucide-react"
 
 import { HisaabLogo } from "@/components/brand/logo"
+import { GroupMark } from "@/components/hisaab/group-mark"
 import { NewExpenseButton } from "@/components/hisaab/new-expense-button"
 import { ThemeSwitcher } from "@/components/hisaab/theme-switcher"
 import { NAV_ITEMS } from "@/components/shell/nav"
@@ -14,7 +15,7 @@ import { cn } from "@/lib/utils"
 export type ShellGroup = {
   id: string
   name: string
-  emoji: string
+  colorKey: string
 }
 
 /// One shell, two shapes: a persistent rail from `md` up, a top bar plus a
@@ -80,7 +81,12 @@ export function AppShell({
                     : "text-muted-foreground hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground"
                 )}
               >
-                <span aria-hidden>{group.emoji}</span>
+                <GroupMark
+                  name={group.name}
+                  colorKey={group.colorKey}
+                  id={group.id}
+                  className="size-5 rounded-[0.15rem] text-[0.5rem]"
+                />
                 <span className="truncate">{group.name}</span>
               </Link>
             ))}

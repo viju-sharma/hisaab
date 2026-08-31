@@ -2,6 +2,7 @@ import type { Metadata } from "next"
 import Link from "next/link"
 import { ArrowRight, Plus } from "lucide-react"
 
+import { GroupMark } from "@/components/hisaab/group-mark"
 import { BalanceAmount, BalancePill, Money } from "@/components/hisaab/money"
 import { PageHeader } from "@/components/hisaab/page-header"
 import { Button } from "@/components/ui/button"
@@ -127,12 +128,11 @@ export default async function DashboardPage() {
                   href={`/groups/${group.id}`}
                   className="animate-row-in group flex items-center gap-3 px-4 py-3.5 transition-colors hover:bg-muted/60"
                 >
-                  <span
-                    className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-muted text-base"
-                    aria-hidden
-                  >
-                    {group.emoji}
-                  </span>
+                  <GroupMark
+                    name={group.name}
+                    colorKey={group.colorKey}
+                    id={group.id}
+                  />
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-sm font-medium">
                       {group.name}

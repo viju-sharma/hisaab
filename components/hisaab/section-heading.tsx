@@ -14,7 +14,7 @@ export function SectionHeading({
 }) {
   return (
     <div className={cn("flex items-center justify-between gap-3 pb-2.5", className)}>
-      <h2 className="text-xs font-medium tracking-[0.06em] text-muted-foreground uppercase">
+      <h2 className="label-mono text-muted-foreground">
         {children}
       </h2>
       {actions}

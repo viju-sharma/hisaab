@@ -2,13 +2,24 @@
 
 import { revalidatePath } from "next/cache"
 import { after } from "next/server"
+import { or } from "@prisma/orm-postgres/orm-client"
 
 import { ActionError, defineAction } from "@/lib/action"
-import { requireGroupAdmin, requireGroupMember, requireGroupOwner } from "@/lib/authz"
+import {
+  requireGroupAdmin,
+  requireGroupMember,
+  requireGroupOwner,
+} from "@/lib/authz"
+import { db } from "@/lib/db"
+import { fromDate, now, toDateOrNull } from "@/lib/db-time"
 import { publishEvent } from "@/lib/events"
-import { newInviteCode, newInviteToken, normaliseInviteCode } from "@/lib/invite"
+import { newId } from "@/lib/id"
+import {
+  newInviteCode,
+  newInviteToken,
+  normaliseInviteCode,
+} from "@/lib/invite"
 import { recordAudit } from "@/lib/observability/audit"
-import { prisma } from "@/lib/prisma"
 import { sendPushToUsers } from "@/lib/push"
 import {
   changeRoleSchema,
@@ -24,44 +35,64 @@ export const createGroup = defineAction(
   "group.create",
   createGroupSchema,
   async (input, user) => {
-    const group = await prisma.$transaction(async (tx) => {
-      const created = await tx.group.create({
-        data: {
-          name: input.name,
-          description: input.description || null,
-          type: input.type,
-          emoji: input.emoji,
-          colorKey: input.colorKey,
-          currency: input.currency,
-          simplifyDebts: input.simplifyDebts,
-          createdById: user.id,
-          members: { create: { userId: user.id, role: "OWNER" } },
-          // Every group gets a shareable invite from the moment it exists, so
-          // "create then share" is one step rather than two.
-          inviteCodes: {
-            create: {
-              code: newInviteCode(),
-              token: newInviteToken(),
-              createdById: user.id,
-            },
-          },
-        },
+    const group = await db.transaction(async (tx) => {
+      const timestamp = now()
+      const groupId = newId()
+
+      const created = await tx.orm.public.Group.create({
+        id: groupId,
+        name: input.name,
+        description: input.description || null,
+        type: input.type,
+        colorKey: input.colorKey,
+        currency: input.currency,
+        simplifyDebts: input.simplifyDebts,
+        createdById: user.id,
+        createdAt: timestamp,
+        updatedAt: timestamp,
+        archivedAt: null,
+        deletedAt: null,
+      })
+
+      await tx.orm.public.GroupMember.create({
+        id: newId(),
+        groupId,
+        userId: user.id,
+        role: "OWNER",
+        nickname: null,
+        joinedAt: timestamp,
+        leftAt: null,
+      })
+
+      // Every group gets a shareable invite from the moment it exists, so
+      // "create then share" is one step rather than two.
+      await tx.orm.public.InviteCode.create({
+        id: newId(),
+        groupId,
+        code: newInviteCode(),
+        token: newInviteToken(),
+        createdById: user.id,
+        expiresAt: null,
+        maxUses: null,
+        useCount: 0,
+        revokedAt: null,
+        createdAt: timestamp,
       })
 
       await recordAudit(tx, {
         action: "CREATE",
         entityType: "Group",
-        entityId: created.id,
-        groupId: created.id,
+        entityId: groupId,
+        groupId,
         after: created,
       })
       await publishEvent(tx, {
-        groupId: created.id,
+        groupId,
         actorId: user.id,
         type: "GROUP_CREATED",
         summary: `created ${created.name}`,
         entityType: "Group",
-        entityId: created.id,
+        entityId: groupId,
       })
 
       return created
@@ -79,14 +110,18 @@ export const updateGroup = defineAction(
   async ({ groupId, ...changes }, user) => {
     await requireGroupAdmin(groupId)
 
-    await prisma.$transaction(async (tx) => {
-      const before = await tx.group.findUniqueOrThrow({ where: { id: groupId } })
-      const after_ = await tx.group.update({
-        where: { id: groupId },
-        data: {
-          ...changes,
-          description: changes.description === "" ? null : changes.description,
-        },
+    await db.transaction(async (tx) => {
+      const before = await tx.orm.public.Group.where((group) =>
+        group.id.eq(groupId)
+      ).first()
+      if (!before) throw new ActionError("That group no longer exists.")
+
+      const after_ = await tx.orm.public.Group.where((group) =>
+        group.id.eq(groupId)
+      ).update({
+        ...changes,
+        description: changes.description === "" ? null : changes.description,
+        updatedAt: now(),
       })
 
       await recordAudit(tx, {
@@ -118,14 +153,18 @@ export const archiveGroup = defineAction(
   async ({ groupId }, user) => {
     await requireGroupOwner(groupId)
 
-    await prisma.$transaction(async (tx) => {
-      const before = await tx.group.findUniqueOrThrow({ where: { id: groupId } })
-      if (before.archivedAt) throw new ActionError("This group is already archived.")
+    await db.transaction(async (tx) => {
+      const before = await tx.orm.public.Group.where((group) =>
+        group.id.eq(groupId)
+      ).first()
+      if (!before) throw new ActionError("That group no longer exists.")
+      if (before.archivedAt)
+        throw new ActionError("This group is already archived.")
 
-      const updated = await tx.group.update({
-        where: { id: groupId },
-        data: { archivedAt: new Date() },
-      })
+      const timestamp = now()
+      const updated = await tx.orm.public.Group.where((group) =>
+        group.id.eq(groupId)
+      ).update({ archivedAt: timestamp, updatedAt: timestamp })
 
       await recordAudit(tx, {
         action: "UPDATE",
@@ -156,25 +195,26 @@ export const createInvite = defineAction(
   async ({ groupId, expiresInDays, maxUses }, user) => {
     await requireGroupAdmin(groupId)
 
-    const invite = await prisma.$transaction(async (tx) => {
+    const invite = await db.transaction(async (tx) => {
       // A fresh invite retires the old one, so a link shared with the wrong
       // person stops working the moment a new one is generated.
-      await tx.inviteCode.updateMany({
-        where: { groupId, revokedAt: null },
-        data: { revokedAt: new Date() },
-      })
+      await tx.orm.public.InviteCode.where((entry) => entry.groupId.eq(groupId))
+        .where((entry) => entry.revokedAt.isNull())
+        .updateAll({ revokedAt: now() })
 
-      const created = await tx.inviteCode.create({
-        data: {
-          groupId,
-          code: newInviteCode(),
-          token: newInviteToken(),
-          createdById: user.id,
-          maxUses,
-          expiresAt: expiresInDays
-            ? new Date(Date.now() + expiresInDays * 86_400_000)
-            : null,
-        },
+      const created = await tx.orm.public.InviteCode.create({
+        id: newId(),
+        groupId,
+        code: newInviteCode(),
+        token: newInviteToken(),
+        createdById: user.id,
+        maxUses: maxUses ?? null,
+        useCount: 0,
+        revokedAt: null,
+        createdAt: now(),
+        expiresAt: expiresInDays
+          ? fromDate(new Date(Date.now() + expiresInDays * 86_400_000))
+          : null,
       })
 
       await recordAudit(tx, {
@@ -182,7 +222,11 @@ export const createInvite = defineAction(
         entityType: "InviteCode",
         entityId: created.id,
         groupId,
-        after: { code: created.code, expiresAt: created.expiresAt, maxUses },
+        after: {
+          code: created.code,
+          expiresAt: created.expiresAt,
+          maxUses: maxUses ?? null,
+        },
       })
       return created
     })
@@ -199,10 +243,11 @@ export const joinGroup = defineAction(
     const normalised = normaliseInviteCode(code)
     const raw = code.trim().split("/").pop() ?? code.trim()
 
-    const invite = await prisma.inviteCode.findFirst({
-      where: { OR: [{ token: raw }, { code: normalised }] },
-      include: { group: { select: { id: true, name: true, deletedAt: true } } },
-    })
+    const invite = await db.orm.public.InviteCode.where((entry) =>
+      or(entry.token.eq(raw), entry.code.eq(normalised))
+    )
+      .include("group", (group) => group.select("id", "name", "deletedAt"))
+      .first()
 
     if (!invite || invite.group.deletedAt) {
       throw new ActionError("That invite code doesn't match any group.")
@@ -210,7 +255,8 @@ export const joinGroup = defineAction(
     if (invite.revokedAt) {
       throw new ActionError("That invite has been revoked. Ask for a new one.")
     }
-    if (invite.expiresAt && invite.expiresAt < new Date()) {
+    const expiresAt = toDateOrNull(invite.expiresAt)
+    if (expiresAt && expiresAt < new Date()) {
       throw new ActionError("That invite has expired. Ask for a new one.")
     }
     if (invite.maxUses != null && invite.useCount >= invite.maxUses) {
@@ -219,27 +265,38 @@ export const joinGroup = defineAction(
 
     const groupId = invite.groupId
 
-    const existing = await prisma.groupMember.findUnique({
-      where: { groupId_userId: { groupId, userId: user.id } },
-    })
+    const existing = await db.orm.public.GroupMember.where({
+      groupId,
+      userId: user.id,
+    }).first()
     if (existing && !existing.leftAt) {
       return { groupId, alreadyMember: true }
     }
 
-    const recipients = await prisma.$transaction(async (tx) => {
+    const recipients = await db.transaction(async (tx) => {
       const membership = existing
-        ? await tx.groupMember.update({
-            where: { id: existing.id },
-            data: { leftAt: null, joinedAt: new Date() },
+        ? await tx.orm.public.GroupMember.where((member) =>
+            member.id.eq(existing.id)
+          ).update({ leftAt: null, joinedAt: now() })
+        : await tx.orm.public.GroupMember.create({
+            id: newId(),
+            groupId,
+            userId: user.id,
+            role: "MEMBER",
+            nickname: null,
+            joinedAt: now(),
+            leftAt: null,
           })
-        : await tx.groupMember.create({
-            data: { groupId, userId: user.id, role: "MEMBER" },
-          })
+      if (!membership) throw new ActionError("Could not join that group.")
 
-      await tx.inviteCode.update({
-        where: { id: invite.id },
-        data: { useCount: { increment: 1 } },
-      })
+      // Read-modify-write would let two people joining at once share a use, so
+      // the counter is bumped in the database.
+      await tx.execute(
+        db.raw
+          .sql`UPDATE "public"."InviteCode" SET "useCount" = "useCount" + 1 WHERE "id" = ${invite.id}`
+          .affectedCount()
+          .build()
+      )
 
       await recordAudit(tx, {
         action: "JOIN",
@@ -249,10 +306,12 @@ export const joinGroup = defineAction(
         after: membership,
       })
 
-      const members = await tx.groupMember.findMany({
-        where: { groupId, leftAt: null },
-        select: { userId: true },
-      })
+      const members = await tx.orm.public.GroupMember.where((member) =>
+        member.groupId.eq(groupId)
+      )
+        .where((member) => member.leftAt.isNull())
+        .select("userId")
+        .all()
 
       return publishEvent(tx, {
         groupId,
@@ -302,11 +361,10 @@ export const leaveGroup = defineAction(
       throw new ActionError("Settle up before leaving this group.")
     }
 
-    await prisma.$transaction(async (tx) => {
-      const updated = await tx.groupMember.update({
-        where: { id: membership.id },
-        data: { leftAt: new Date() },
-      })
+    await db.transaction(async (tx) => {
+      const updated = await tx.orm.public.GroupMember.where((member) =>
+        member.id.eq(membership.id)
+      ).update({ leftAt: now() })
       await recordAudit(tx, {
         action: "LEAVE",
         entityType: "GroupMember",
@@ -337,11 +395,14 @@ export const removeMember = defineAction(
     await requireGroupAdmin(groupId)
     if (userId === user.id) throw new ActionError("Use 'Leave group' instead.")
 
-    const target = await prisma.groupMember.findUnique({
-      where: { groupId_userId: { groupId, userId } },
-    })
-    if (!target || target.leftAt) throw new ActionError("They are not in this group.")
-    if (target.role === "OWNER") throw new ActionError("The owner cannot be removed.")
+    const target = await db.orm.public.GroupMember.where({
+      groupId,
+      userId,
+    }).first()
+    if (!target || target.leftAt)
+      throw new ActionError("They are not in this group.")
+    if (target.role === "OWNER")
+      throw new ActionError("The owner cannot be removed.")
 
     const { netFor, netBalances } = await import("@/lib/balance")
     const ledger = await loadLedger(groupId)
@@ -349,11 +410,10 @@ export const removeMember = defineAction(
       throw new ActionError("Settle their balance before removing them.")
     }
 
-    await prisma.$transaction(async (tx) => {
-      const updated = await tx.groupMember.update({
-        where: { id: target.id },
-        data: { leftAt: new Date() },
-      })
+    await db.transaction(async (tx) => {
+      const updated = await tx.orm.public.GroupMember.where((member) =>
+        member.id.eq(target.id)
+      ).update({ leftAt: now() })
       await recordAudit(tx, {
         action: "LEAVE",
         entityType: "GroupMember",
@@ -382,16 +442,19 @@ export const changeMemberRole = defineAction(
   changeRoleSchema,
   async ({ groupId, userId, role }, user) => {
     await requireGroupOwner(groupId)
-    if (userId === user.id) throw new ActionError("You cannot change your own role.")
+    if (userId === user.id)
+      throw new ActionError("You cannot change your own role.")
 
-    await prisma.$transaction(async (tx) => {
-      const before = await tx.groupMember.findUniqueOrThrow({
-        where: { groupId_userId: { groupId, userId } },
-      })
-      const updated = await tx.groupMember.update({
-        where: { id: before.id },
-        data: { role },
-      })
+    await db.transaction(async (tx) => {
+      const before = await tx.orm.public.GroupMember.where({
+        groupId,
+        userId,
+      }).first()
+      if (!before) throw new ActionError("They are not in this group.")
+
+      const updated = await tx.orm.public.GroupMember.where((member) =>
+        member.id.eq(before.id)
+      ).update({ role })
       await recordAudit(tx, {
         action: "UPDATE",
         entityType: "GroupMember",
@@ -419,17 +482,16 @@ export const changeMemberRole = defineAction(
 /// server/queries/balance.ts; this stays here to avoid a circular import.
 async function loadLedger(groupId: string) {
   const [expenses, settlements] = await Promise.all([
-    prisma.expense.findMany({
-      where: { groupId, deletedAt: null },
-      select: {
-        payers: { select: { userId: true, groupAmountMinor: true } },
-        splits: { select: { userId: true, groupAmountMinor: true } },
-      },
-    }),
-    prisma.settlement.findMany({
-      where: { groupId, deletedAt: null },
-      select: { fromUserId: true, toUserId: true, groupAmountMinor: true },
-    }),
+    db.orm.public.Expense.where((expense) => expense.groupId.eq(groupId))
+      .where((expense) => expense.deletedAt.isNull())
+      .select("id")
+      .include("payers", (payer) => payer.select("userId", "groupAmountMinor"))
+      .include("splits", (split) => split.select("userId", "groupAmountMinor"))
+      .all(),
+    db.orm.public.Settlement.where((entry) => entry.groupId.eq(groupId))
+      .where((entry) => entry.deletedAt.isNull())
+      .select("fromUserId", "toUserId", "groupAmountMinor")
+      .all(),
   ])
 
   return {
