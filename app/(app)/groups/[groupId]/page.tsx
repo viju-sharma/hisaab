@@ -4,6 +4,7 @@ import { Plus, Receipt } from "lucide-react"
 
 import { Money } from "@/components/hisaab/money"
 import { Button } from "@/components/ui/button"
+import { SectionHeading } from "@/components/hisaab/section-heading"
 import {
   Empty,
   EmptyContent,
@@ -73,9 +74,7 @@ export default async function GroupExpensesPage({
 
       {[...days.entries()].map(([day, rows]) => (
         <section key={day}>
-          <h2 className="pb-2 text-xs font-medium tracking-wide text-muted-foreground uppercase">
-            {day}
-          </h2>
+          <SectionHeading>{day}</SectionHeading>
           <ul className="divide-y overflow-hidden rounded-2xl border bg-card">
             {rows.map((expense, index) => (
               <li key={expense.id} style={{ "--stagger": index } as React.CSSProperties}>

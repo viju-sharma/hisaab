@@ -6,6 +6,7 @@ import { PageHeader } from "@/components/hisaab/page-header"
 import { ThemeToggle } from "@/components/hisaab/theme-toggle"
 import { InstallPrompt } from "@/components/pwa/install-prompt"
 import { PushToggle } from "@/components/pwa/push-toggle"
+import { SectionHeading } from "@/components/hisaab/section-heading"
 import { getOrCreateUser } from "@/lib/auth"
 
 export const metadata: Metadata = { title: "Settings" }
@@ -29,9 +30,7 @@ export default async function SettingsPage() {
         </section>
 
         <section className="space-y-3">
-          <h2 className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
-            App
-          </h2>
+          <SectionHeading>App</SectionHeading>
           <InstallPrompt />
           <PushToggle
             vapidPublicKey={process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY}
@@ -40,9 +39,7 @@ export default async function SettingsPage() {
         </section>
 
         <section className="space-y-3">
-          <h2 className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
-            Preferences
-          </h2>
+          <SectionHeading>Preferences</SectionHeading>
           <dl className="divide-y overflow-hidden rounded-xl border text-sm">
             <div className="flex justify-between gap-4 px-4 py-3">
               <dt className="text-muted-foreground">Default currency</dt>

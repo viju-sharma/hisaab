@@ -301,7 +301,7 @@ export function ExpenseForm({
           Amount
         </Label>
         <div className="mt-1 flex items-baseline gap-2">
-          <span className="font-display text-3xl font-semibold text-muted-foreground">
+          <span className="font-sans text-3xl font-semibold text-muted-foreground">
             {currencySymbol(currency)}
           </span>
           <input
@@ -311,7 +311,7 @@ export function ExpenseForm({
             inputMode="decimal"
             autoFocus
             placeholder="0"
-            className="tabular w-full bg-transparent font-display text-4xl font-semibold tracking-tight outline-none placeholder:text-muted-foreground/40"
+            className="tabular w-full bg-transparent font-sans text-4xl font-semibold tracking-tight outline-none placeholder:text-muted-foreground/40"
           />
         </div>
 

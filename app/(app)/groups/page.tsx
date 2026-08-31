@@ -6,6 +6,7 @@ import { BalancePill } from "@/components/hisaab/money"
 import { MemberStack } from "@/components/hisaab/member-avatar"
 import { PageHeader } from "@/components/hisaab/page-header"
 import { Button } from "@/components/ui/button"
+import { SectionHeading } from "@/components/hisaab/section-heading"
 import {
   Empty,
   EmptyContent,
@@ -76,7 +77,7 @@ export default async function GroupsPage() {
                 <BalancePill minor={group.myNetMinor} currency={group.currency} />
               </div>
               <div className="min-w-0">
-                <p className="truncate font-display font-medium">{group.name}</p>
+                <p className="truncate font-medium">{group.name}</p>
                 <p className="text-xs text-muted-foreground">
                   {group.members.length}{" "}
                   {group.members.length === 1 ? "member" : "members"} ·{" "}
@@ -92,9 +93,7 @@ export default async function GroupsPage() {
 
       {archived.length > 0 ? (
         <section className="mt-10">
-          <h2 className="pb-3 text-sm font-medium text-muted-foreground">
-            Archived
-          </h2>
+          <SectionHeading>Archived</SectionHeading>
           <ul className="divide-y overflow-hidden rounded-2xl border bg-card">
             {archived.map((group) => (
               <li key={group.id}>

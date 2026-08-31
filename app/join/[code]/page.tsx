@@ -32,7 +32,7 @@ export default async function JoinWithCodePage({
   return (
     <main className="mx-auto flex min-h-svh max-w-md flex-col justify-center px-6 text-center">
       <HisaabLogo className="mx-auto" />
-      <h1 className="mt-6 font-display text-2xl font-semibold tracking-tight text-balance">
+      <h1 className="mt-6 font-display text-2xl tracking-tight text-balance">
         You have been invited to split expenses
       </h1>
       <p className="mt-2 text-sm text-muted-foreground text-pretty">

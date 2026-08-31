@@ -3,6 +3,7 @@
 import * as React from "react"
 
 import {
+  DEFAULT_THEME,
   readResolvedTheme,
   readTheme,
   subscribeToTheme,
@@ -24,7 +25,7 @@ export function useTheme(): {
   const theme = React.useSyncExternalStore(
     subscribeToTheme,
     readTheme,
-    () => "system" as const
+    () => DEFAULT_THEME
   )
   const resolvedTheme = React.useSyncExternalStore(
     subscribeToTheme,

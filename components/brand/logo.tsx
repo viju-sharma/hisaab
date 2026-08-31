@@ -1,10 +1,9 @@
 import { cn } from "@/lib/utils"
 
-/// The Hisaab mark: a shirorekha — the headline rule that runs above Devanagari
-/// letters, which is also the rule at the top of a ledger page — with three
-/// entries of unequal length hanging from it. One bill, uneven shares, one
-/// shared total. Drawn in `currentColor` so it inherits from context and works
-/// as a monochrome and maskable icon without a second asset.
+/// The Hisaab mark: an equals sign whose two bars are not equal. Settling up is
+/// the product, and the asymmetry is the reason it needs doing — what looks
+/// like an even split almost never is. Drawn in `currentColor` so it inherits
+/// from context and works monochrome and maskable without a second asset.
 export function HisaabMark({
   className,
   ...props
@@ -18,10 +17,8 @@ export function HisaabMark({
       className={cn("size-6", className)}
       {...props}
     >
-      <rect x="9" y="13" width="46" height="7" rx="3.5" fill="currentColor" />
-      <rect x="11.5" y="20" width="9" height="31" rx="4.5" fill="currentColor" />
-      <rect x="27.5" y="20" width="9" height="21" rx="4.5" fill="currentColor" />
-      <rect x="43.5" y="20" width="9" height="27" rx="4.5" fill="currentColor" />
+      <rect x="14" y="21" width="36" height="9" rx="4.5" fill="currentColor" />
+      <rect x="14" y="34" width="22" height="9" rx="4.5" fill="currentColor" />
     </svg>
   )
 }
@@ -39,7 +36,7 @@ export function HisaabLogo({
         <HisaabMark className="size-5" />
       </span>
       {showWordmark ? (
-        <span className="font-display text-[1.0625rem] leading-none font-semibold tracking-tight">
+        <span className="font-display text-[1.15rem] leading-none tracking-tight">
           Hisaab
         </span>
       ) : null}

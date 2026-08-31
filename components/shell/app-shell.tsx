@@ -7,6 +7,7 @@ import { Plus } from "lucide-react"
 
 import { HisaabLogo } from "@/components/brand/logo"
 import { NewExpenseButton } from "@/components/hisaab/new-expense-button"
+import { ThemeSwitcher } from "@/components/hisaab/theme-switcher"
 import { NAV_ITEMS } from "@/components/shell/nav"
 import { cn } from "@/lib/utils"
 
@@ -93,7 +94,10 @@ export function AppShell({
 
         <div className="mt-4 flex items-center justify-between border-t pt-3">
           <UserButton />
-          <NewExpenseButton groups={groups} />
+          <div className="flex items-center gap-1">
+            <ThemeSwitcher />
+            <NewExpenseButton groups={groups} />
+          </div>
         </div>
       </aside>
 
@@ -101,7 +105,10 @@ export function AppShell({
         <Link href="/dashboard">
           <HisaabLogo />
         </Link>
-        <UserButton />
+        <div className="flex items-center gap-1">
+          <ThemeSwitcher />
+          <UserButton />
+        </div>
       </header>
 
       <main className="mx-auto w-full max-w-3xl flex-1 px-4 pb-28 md:px-8 md:pt-8 md:pb-16">

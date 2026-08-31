@@ -45,7 +45,7 @@ export function GroupHeader({
             {group.emoji}
           </span>
           <div className="min-w-0">
-            <h1 className="truncate font-display text-xl font-semibold tracking-tight">
+            <h1 className="truncate font-display text-xl tracking-tight">
               {group.name}
             </h1>
             <p className="text-xs text-muted-foreground">

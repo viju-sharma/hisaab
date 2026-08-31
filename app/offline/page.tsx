@@ -10,7 +10,7 @@ export default function OfflinePage() {
   return (
     <main className="mx-auto flex min-h-svh max-w-sm flex-col items-center justify-center gap-4 px-6 text-center">
       <HisaabLogo />
-      <h1 className="font-display text-xl font-semibold tracking-tight">
+      <h1 className="font-display text-xl tracking-tight">
         You are offline
       </h1>
       <p className="text-sm text-muted-foreground text-pretty">

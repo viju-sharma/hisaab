@@ -61,10 +61,8 @@ export async function GET(
           background: INDIGO,
         }}
       >
-        {bar(9, 13, 46, 7, 3.5)}
-        {bar(11.5, 20, 9, 31, 4.5)}
-        {bar(27.5, 20, 9, 21, 4.5)}
-        {bar(43.5, 20, 9, 27, 4.5)}
+        {bar(14, 21, 36, 9, 4.5)}
+        {bar(14, 34, 22, 9, 4.5)}
       </div>
     ),
     { width: size, height: size }

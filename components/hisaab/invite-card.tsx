@@ -68,7 +68,7 @@ export function InviteCard({
 
   return (
     <div className="rounded-2xl border bg-card p-5">
-      <h2 className="font-display font-medium">Invite people</h2>
+      <h2 className="font-sans text-sm font-medium">Invite people</h2>
       <p className="mt-1 text-sm text-muted-foreground">
         Share the code or the link. Anyone with either can join this group.
       </p>

@@ -3,6 +3,7 @@ import { format } from "date-fns"
 import { RecurringForm } from "@/components/hisaab/recurring-form"
 import { RecurringRow } from "@/components/hisaab/recurring-row"
 import { Money } from "@/components/hisaab/money"
+import { SectionHeading } from "@/components/hisaab/section-heading"
 import { describeRecurrence } from "@/lib/recurrence"
 import { prisma } from "@/lib/prisma"
 import { requireGroupMember } from "@/lib/authz"
@@ -39,9 +40,7 @@ export default async function GroupRecurringPage({
   return (
     <div className="space-y-8 pb-8">
       <section>
-        <h2 className="pb-2 text-xs font-medium tracking-wide text-muted-foreground uppercase">
-          Scheduled
-        </h2>
+        <SectionHeading>Scheduled</SectionHeading>
 
         {templates.length === 0 ? (
           <p className="rounded-2xl border border-dashed px-4 py-8 text-center text-sm text-muted-foreground">
@@ -86,9 +85,7 @@ export default async function GroupRecurringPage({
       </section>
 
       <section>
-        <h2 className="pb-2 text-xs font-medium tracking-wide text-muted-foreground uppercase">
-          Add a schedule
-        </h2>
+        <SectionHeading>Add a schedule</SectionHeading>
         <RecurringForm
           groupId={groupId}
           groupCurrency={group.currency}

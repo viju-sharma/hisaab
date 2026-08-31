@@ -9,6 +9,7 @@ import { toast } from "sonner"
 import { MemberAvatar } from "@/components/hisaab/member-avatar"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { SectionHeading } from "@/components/hisaab/section-heading"
 import { addComment } from "@/server/actions/expense"
 
 type Comment = {
@@ -48,9 +49,7 @@ export function CommentBox({
 
   return (
     <section>
-      <h2 className="pb-2 text-xs font-medium tracking-wide text-muted-foreground uppercase">
-        Comments
-      </h2>
+      <SectionHeading>Comments</SectionHeading>
 
       {comments.length > 0 ? (
         <ul className="mb-3 space-y-3">

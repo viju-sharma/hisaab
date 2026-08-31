@@ -50,7 +50,7 @@ export function GroupDangerZone({
 
   return (
     <section className="rounded-2xl border border-destructive/25 p-5">
-      <h2 className="font-display font-medium">Careful</h2>
+      <h2 className="font-sans text-sm font-medium">Careful</h2>
 
       {role === "OWNER" ? (
         <>

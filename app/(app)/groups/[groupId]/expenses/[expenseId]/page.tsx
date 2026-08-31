@@ -8,6 +8,7 @@ import { DeleteExpenseButton } from "@/components/hisaab/delete-expense-button"
 import { MemberAvatar } from "@/components/hisaab/member-avatar"
 import { Money } from "@/components/hisaab/money"
 import { Button } from "@/components/ui/button"
+import { SectionHeading } from "@/components/hisaab/section-heading"
 import { getExpenseDetail } from "@/server/queries/expense"
 
 export default async function ExpenseDetailPage({
@@ -36,7 +37,7 @@ export default async function ExpenseDetailPage({
                 "Uncategorised"
               )}
             </p>
-            <h1 className="mt-1 font-display text-xl font-semibold tracking-tight text-balance">
+            <h1 className="mt-1 font-display text-xl tracking-tight text-balance">
               {expense.description}
             </h1>
             <p className="mt-1 text-xs text-muted-foreground">
@@ -60,7 +61,7 @@ export default async function ExpenseDetailPage({
           </div>
         </div>
 
-        <p className="mt-4 font-display text-3xl font-semibold tracking-tight">
+        <p className="mt-4 font-sans text-3xl font-semibold tracking-tight tabular">
           <Money minor={expense.amountMinor} currency={expense.currency} />
         </p>
         {foreign ? (
@@ -81,9 +82,7 @@ export default async function ExpenseDetailPage({
       </header>
 
       <section>
-        <h2 className="pb-2 text-xs font-medium tracking-wide text-muted-foreground uppercase">
-          Paid by
-        </h2>
+        <SectionHeading>Paid by</SectionHeading>
         <ul className="divide-y overflow-hidden rounded-2xl border bg-card">
           {expense.payers.map((payer) => (
             <li key={payer.userId} className="flex items-center gap-3 px-4 py-3">
@@ -107,9 +106,7 @@ export default async function ExpenseDetailPage({
       </section>
 
       <section>
-        <h2 className="pb-2 text-xs font-medium tracking-wide text-muted-foreground uppercase">
-          Split {expense.splitMethod.toLowerCase()}
-        </h2>
+        <SectionHeading>Split {expense.splitMethod.toLowerCase()}</SectionHeading>
         <ul className="divide-y overflow-hidden rounded-2xl border bg-card">
           {expense.splits.map((split) => (
             <li key={split.userId} className="flex items-center gap-3 px-4 py-3">

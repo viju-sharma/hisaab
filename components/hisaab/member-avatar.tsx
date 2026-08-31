@@ -7,10 +7,10 @@ export type MemberLike = {
   imageUrl?: string | null
 }
 
-function initials(name: string) {
+function initials(name: string, max = 2) {
   return name
     .split(/\s+/)
-    .slice(0, 2)
+    .slice(0, max)
     .map((part) => part[0]?.toUpperCase() ?? "")
     .join("")
 }
@@ -18,17 +18,21 @@ function initials(name: string) {
 export function MemberAvatar({
   member,
   className,
+  /// Overlapping avatars hide their own right edge, so a stack asks for one
+  /// letter rather than two it would only clip.
+  letters = 2,
 }: {
   member: MemberLike
   className?: string
+  letters?: 1 | 2
 }) {
   return (
     <Avatar className={cn("size-7", className)}>
       {member.imageUrl ? (
         <AvatarImage src={member.imageUrl} alt={member.name} />
       ) : null}
-      <AvatarFallback className="text-[0.65rem] font-medium">
-        {initials(member.name) || "?"}
+      <AvatarFallback className="text-[0.7rem] font-medium">
+        {initials(member.name, letters) || "?"}
       </AvatarFallback>
     </Avatar>
   )
@@ -54,11 +58,12 @@ export function MemberStack({
         <MemberAvatar
           key={member.userId}
           member={member}
-          className="size-6 ring-2 ring-background"
+          letters={1}
+          className="size-7 ring-2 ring-background"
         />
       ))}
       {overflow > 0 ? (
-        <span className="flex size-6 items-center justify-center rounded-full bg-muted text-[0.6rem] font-medium text-muted-foreground ring-2 ring-background">
+        <span className="flex size-7 items-center justify-center rounded-full bg-muted text-[0.65rem] font-medium text-muted-foreground ring-2 ring-background">
           +{overflow}
         </span>
       ) : null}

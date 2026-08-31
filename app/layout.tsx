@@ -1,7 +1,7 @@
 import type { Metadata, Viewport } from "next"
 import { ClerkProvider } from "@clerk/nextjs"
 import { shadcn } from "@clerk/ui/themes"
-import { Geist_Mono, Inter, Plus_Jakarta_Sans } from "next/font/google"
+import { Geist_Mono, Instrument_Serif, Inter } from "next/font/google"
 
 import "./globals.css"
 import { ServiceWorker } from "@/components/pwa/service-worker"
@@ -13,10 +13,13 @@ import { cn } from "@/lib/utils"
 
 const fontSans = Inter({ subsets: ["latin"], variable: "--font-sans" })
 
-/// A second face only for headings and the wordmark — enough warmth to stop the
-/// app reading as a generic Inter dashboard, without a second personality.
-const fontDisplay = Plus_Jakarta_Sans({
+/// Headlines only. A serif against Inter's numbers gives the app an editorial
+/// voice — a ledger kept by hand — where another grotesque would have left it
+/// looking like every other dashboard. Amounts stay in Inter: figures need
+/// tabular widths, which this face does not have.
+const fontDisplay = Instrument_Serif({
   subsets: ["latin"],
+  weight: "400",
   variable: "--font-display",
 })
 

@@ -3,6 +3,7 @@ import { ArrowRight } from "lucide-react"
 import { MemberAvatar } from "@/components/hisaab/member-avatar"
 import { Money, BalanceAmount, balanceLabel } from "@/components/hisaab/money"
 import { SettleUpButton } from "@/components/hisaab/settle-up"
+import { SectionHeading } from "@/components/hisaab/section-heading"
 import { getGroupBalances } from "@/server/queries/balance"
 
 export default async function GroupBalancesPage({
@@ -38,9 +39,7 @@ export default async function GroupBalancesPage({
       </section>
 
       <section>
-        <h2 className="pb-2 text-xs font-medium tracking-wide text-muted-foreground uppercase">
-          {data.simplifyDebts ? "Settle up in the fewest payments" : "Who owes whom"}
-        </h2>
+        <SectionHeading>{data.simplifyDebts ? "Settle up in the fewest payments" : "Who owes whom"}</SectionHeading>
 
         {lead.length === 0 ? (
           <p className="rounded-2xl border border-dashed px-4 py-8 text-center text-sm text-muted-foreground">
@@ -104,9 +103,7 @@ export default async function GroupBalancesPage({
       </section>
 
       <section>
-        <h2 className="pb-2 text-xs font-medium tracking-wide text-muted-foreground uppercase">
-          Everyone
-        </h2>
+        <SectionHeading>Everyone</SectionHeading>
         <ul className="divide-y overflow-hidden rounded-2xl border bg-card">
           {data.balances.map((entry) => (
             <li key={entry.userId} className="flex items-center gap-3 px-4 py-3">
@@ -137,9 +134,7 @@ export default async function GroupBalancesPage({
 
       {alternate.length > 0 ? (
         <section>
-          <h2 className="pb-2 text-xs font-medium tracking-wide text-muted-foreground uppercase">
-            {alternateLabel}
-          </h2>
+          <SectionHeading>{alternateLabel}</SectionHeading>
           <ul className="divide-y overflow-hidden rounded-2xl border border-dashed">
             {alternate.map((transfer) => (
               <li

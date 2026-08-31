@@ -5,6 +5,7 @@ import { ArrowRight, Plus } from "lucide-react"
 import { BalanceAmount, BalancePill, Money } from "@/components/hisaab/money"
 import { PageHeader } from "@/components/hisaab/page-header"
 import { Button } from "@/components/ui/button"
+import { SectionHeading } from "@/components/hisaab/section-heading"
 import {
   Empty,
   EmptyContent,
@@ -53,23 +54,25 @@ export default async function DashboardPage() {
               size="xl"
               className="mt-1 block"
             />
-            <div className="mt-4 flex flex-wrap gap-x-6 gap-y-2 border-t pt-4 text-sm">
-              <span className="text-muted-foreground">
-                You are owed{" "}
+            {/* The two halves of the headline figure, given equal weight so
+                the split between them is readable at a glance. */}
+            <div className="mt-5 grid grid-cols-2 divide-x border-t">
+              <div className="pt-4 pr-4">
+                <p className="text-xs text-muted-foreground">You are owed</p>
                 <Money
                   minor={primary.owedToMe}
                   currency={primary.currency}
-                  className="font-medium text-positive"
+                  className="mt-0.5 block text-lg font-semibold text-positive"
                 />
-              </span>
-              <span className="text-muted-foreground">
-                You owe{" "}
+              </div>
+              <div className="pt-4 pl-4">
+                <p className="text-xs text-muted-foreground">You owe</p>
                 <Money
                   minor={primary.iOwe}
                   currency={primary.currency}
-                  className="font-medium text-negative"
+                  className="mt-0.5 block text-lg font-semibold text-negative"
                 />
-              </span>
+              </div>
             </div>
           </>
         ) : (
@@ -99,9 +102,7 @@ export default async function DashboardPage() {
       </section>
 
       <section className="mt-8">
-        <h2 className="pb-3 text-sm font-medium text-muted-foreground">
-          By group
-        </h2>
+        <SectionHeading>By group</SectionHeading>
 
         {active.length === 0 ? (
           <Empty className="rounded-2xl border border-dashed">
@@ -126,7 +127,10 @@ export default async function DashboardPage() {
                   href={`/groups/${group.id}`}
                   className="animate-row-in group flex items-center gap-3 px-4 py-3.5 transition-colors hover:bg-muted/60"
                 >
-                  <span className="text-xl" aria-hidden>
+                  <span
+                    className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-muted text-base"
+                    aria-hidden
+                  >
                     {group.emoji}
                   </span>
                   <span className="min-w-0 flex-1">

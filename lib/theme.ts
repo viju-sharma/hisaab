@@ -37,6 +37,10 @@ export function subscribeToTheme(listener: () => void) {
   return () => listeners.delete(listener)
 }
 
+/// Light unless the person has chosen otherwise. "system" stays available as an
+/// explicit choice, it is just not what a first-time visitor gets.
+export const DEFAULT_THEME: Theme = "light"
+
 export function readTheme(): Theme {
   try {
     const stored = localStorage.getItem(THEME_STORAGE_KEY)
@@ -44,9 +48,9 @@ export function readTheme(): Theme {
       return stored
     }
   } catch {
-    // Private mode, or site data blocked. "system" is the right answer anyway.
+    // Private mode, or site data blocked.
   }
-  return "system"
+  return DEFAULT_THEME
 }
 
 export function readResolvedTheme(): ResolvedTheme {
@@ -79,6 +83,6 @@ export function writeTheme(theme: Theme) {
 /// self-contained: nothing is loaded yet when it executes.
 export const THEME_SCRIPT = `(function(){var s=null;try{s=localStorage.getItem(${JSON.stringify(
   THEME_STORAGE_KEY
-)})}catch(e){}try{var t=s==="light"||s==="dark"?s:(window.matchMedia(${JSON.stringify(
+)})}catch(e){}try{var t=s==="light"||s==="dark"?s:(s==="system"&&window.matchMedia(${JSON.stringify(
   DARK_QUERY
-)}).matches?"dark":"light"),r=document.documentElement;if(t==="dark")r.classList.add("dark");r.style.colorScheme=t}catch(e){}})()`
+)}).matches?"dark":"light"),r=document.documentElement;r.classList.toggle("dark",t==="dark");r.style.colorScheme=t}catch(e){}})()`

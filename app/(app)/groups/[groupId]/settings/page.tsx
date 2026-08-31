@@ -4,6 +4,7 @@ import { InviteCard } from "@/components/hisaab/invite-card"
 import { MemberAvatar } from "@/components/hisaab/member-avatar"
 import { GroupDangerZone } from "@/components/hisaab/group-danger-zone"
 import { Badge } from "@/components/ui/badge"
+import { SectionHeading } from "@/components/hisaab/section-heading"
 import { getGroupDetail } from "@/server/queries/group"
 
 export default async function GroupSettingsPage({
@@ -36,9 +37,7 @@ export default async function GroupSettingsPage({
       ) : null}
 
       <section>
-        <h2 className="pb-2 text-xs font-medium tracking-wide text-muted-foreground uppercase">
-          Members
-        </h2>
+        <SectionHeading>Members</SectionHeading>
         <ul className="divide-y overflow-hidden rounded-2xl border bg-card">
           {group.members.map((member) => (
             <li key={member.userId} className="flex items-center gap-3 px-4 py-3">
@@ -63,7 +62,7 @@ export default async function GroupSettingsPage({
       </section>
 
       <section className="rounded-2xl border bg-card p-5">
-        <h2 className="font-display font-medium">About this group</h2>
+        <h2 className="font-sans text-sm font-medium">About this group</h2>
         <dl className="mt-3 space-y-2 text-sm">
           <div className="flex justify-between gap-4">
             <dt className="text-muted-foreground">Currency</dt>

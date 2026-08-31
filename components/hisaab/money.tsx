@@ -43,7 +43,9 @@ export function BalanceAmount({
     <span
       data-slot="money"
       className={cn(
-        "tabular font-display font-semibold",
+        // Inter, not the display serif: figures need tabular widths so a
+        // column of balances lines up.
+        "tabular font-sans font-semibold",
         tone,
         size === "sm" && "text-sm",
         size === "md" && "text-base",
