@@ -6,8 +6,11 @@ import { z } from "zod"
 import { ActionError, defineAction } from "@/lib/action"
 import { requireGroupMember } from "@/lib/authz"
 import { publishEvent } from "@/lib/events"
+import { db } from "@/lib/db"
+import type { JsonValue } from "@/lib/db-types"
+import { fromDate, fromDateOrNull, now } from "@/lib/db-time"
+import { newId } from "@/lib/id"
 import { recordAudit } from "@/lib/observability/audit"
-import { prisma } from "@/lib/prisma"
 import { describeRecurrence, nextOccurrence } from "@/lib/recurrence"
 import { recurringSchema } from "@/lib/validation"
 
@@ -36,27 +39,32 @@ export const createRecurring = defineAction(
       throw new ActionError("That schedule never comes round. Check the dates.")
     }
 
-    const recurring = await prisma.$transaction(async (tx) => {
-      const created = await tx.recurringExpense.create({
-        data: {
-          groupId: input.groupId,
-          description: input.description,
-          notes: input.notes || null,
-          categoryId: input.categoryId,
-          currency: input.currency,
-          amountMinor: input.amountMinor,
-          splitMethod: input.split.method,
-          payerConfig: input.payers,
-          splitConfig: input.split,
-          frequency: input.frequency,
-          interval: input.interval,
-          anchorDay: input.anchorDay,
-          weekday: input.weekday,
-          startDate: input.startDate,
-          endDate: input.endDate,
-          nextRunAt: firstRun,
-          createdById: user.id,
-        },
+    const recurring = await db.transaction(async (tx) => {
+      const timestamp = now()
+      const created = await tx.orm.public.RecurringExpense.create({
+        id: newId(),
+        groupId: input.groupId,
+        description: input.description,
+        notes: input.notes || null,
+        categoryId: input.categoryId,
+        currency: input.currency,
+        amountMinor: input.amountMinor,
+        splitMethod: input.split.method,
+        payerConfig: input.payers as unknown as JsonValue,
+        splitConfig: input.split as unknown as JsonValue,
+        frequency: input.frequency,
+        interval: input.interval,
+        anchorDay: input.anchorDay,
+        weekday: input.weekday,
+        startDate: fromDate(input.startDate),
+        endDate: fromDateOrNull(input.endDate),
+        nextRunAt: fromDate(firstRun),
+        lastRunAt: null,
+        isPaused: false,
+        createdById: user.id,
+        createdAt: timestamp,
+        updatedAt: timestamp,
+        deletedAt: null,
       })
 
       await recordAudit(tx, {
@@ -87,17 +95,17 @@ export const toggleRecurring = defineAction(
   "recurring.toggle",
   recurringIdSchema,
   async ({ recurringId }, user) => {
-    const recurring = await prisma.recurringExpense.findUniqueOrThrow({
-      where: { id: recurringId },
-    })
+    const recurring = await db.orm.public.RecurringExpense.where((entry) =>
+      entry.id.eq(recurringId)
+    ).first()
+    if (!recurring) throw new ActionError("That schedule no longer exists.")
     await requireGroupMember(recurring.groupId)
     if (recurring.deletedAt) throw new ActionError("That schedule was deleted.")
 
-    await prisma.$transaction(async (tx) => {
-      const updated = await tx.recurringExpense.update({
-        where: { id: recurringId },
-        data: { isPaused: !recurring.isPaused },
-      })
+    await db.transaction(async (tx) => {
+      const updated = await tx.orm.public.RecurringExpense.where((entry) =>
+        entry.id.eq(recurringId)
+      ).update({ isPaused: !recurring.isPaused, updatedAt: now() })
       await recordAudit(tx, {
         action: "UPDATE",
         entityType: "RecurringExpense",
@@ -110,7 +118,7 @@ export const toggleRecurring = defineAction(
         groupId: recurring.groupId,
         actorId: user.id,
         type: "RECURRING_UPDATED",
-        summary: `${updated.isPaused ? "paused" : "resumed"} ${recurring.description}`,
+        summary: `${updated?.isPaused ? "paused" : "resumed"} ${recurring.description}`,
         entityType: "RecurringExpense",
         entityId: recurringId,
       })
@@ -125,16 +133,17 @@ export const deleteRecurring = defineAction(
   "recurring.delete",
   recurringIdSchema,
   async ({ recurringId }, user) => {
-    const recurring = await prisma.recurringExpense.findUniqueOrThrow({
-      where: { id: recurringId },
-    })
+    const recurring = await db.orm.public.RecurringExpense.where((entry) =>
+      entry.id.eq(recurringId)
+    ).first()
+    if (!recurring) throw new ActionError("That schedule no longer exists.")
     await requireGroupMember(recurring.groupId)
 
-    await prisma.$transaction(async (tx) => {
-      const updated = await tx.recurringExpense.update({
-        where: { id: recurringId },
-        data: { deletedAt: new Date(), isPaused: true },
-      })
+    await db.transaction(async (tx) => {
+      const timestamp = now()
+      const updated = await tx.orm.public.RecurringExpense.where((entry) =>
+        entry.id.eq(recurringId)
+      ).update({ deletedAt: timestamp, isPaused: true, updatedAt: timestamp })
       await recordAudit(tx, {
         action: "DELETE",
         entityType: "RecurringExpense",

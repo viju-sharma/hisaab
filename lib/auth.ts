@@ -1,8 +1,10 @@
 import { auth, currentUser } from "@clerk/nextjs/server"
 
-import type { UserModel } from "@/app/generated/prisma/models"
+import { db } from "@/lib/db"
+import type { UserRow } from "@/lib/db-types"
+import { now } from "@/lib/db-time"
+import { newId } from "@/lib/id"
 import { identify } from "@/lib/observability/context"
-import { prisma } from "@/lib/prisma"
 
 export class UnauthorizedError extends Error {
   constructor(message = "You need to be signed in to do that.") {
@@ -22,11 +24,11 @@ export class ForbiddenError extends Error {
 /// sight. The Clerk webhook keeps the row in sync afterwards, but webhooks can
 /// lag behind a redirect, so this is the safety net that makes sign-up → first
 /// action work every time.
-export async function getOrCreateUser(): Promise<UserModel> {
+export async function getOrCreateUser(): Promise<UserRow> {
   const { userId: clerkId } = await auth()
   if (!clerkId) throw new UnauthorizedError()
 
-  const existing = await prisma.user.findUnique({ where: { clerkId } })
+  const existing = await db.orm.public.User.where({ clerkId }).first()
   if (existing) {
     identify({ userId: existing.id, clerkId })
     return existing
@@ -40,10 +42,10 @@ export async function getOrCreateUser(): Promise<UserModel> {
     clerkUser.emailAddresses[0]?.emailAddress
   if (!email) throw new UnauthorizedError("Your account has no email address.")
 
-  const user = await prisma.user.upsert({
-    where: { clerkId },
-    update: {},
+  const timestamp = now()
+  const user = await db.orm.public.User.where({ clerkId }).upsert({
     create: {
+      id: newId(),
       clerkId,
       email,
       name:
@@ -51,7 +53,10 @@ export async function getOrCreateUser(): Promise<UserModel> {
         clerkUser.username ||
         null,
       imageUrl: clerkUser.imageUrl,
+      createdAt: timestamp,
+      updatedAt: timestamp,
     },
+    update: {},
   })
 
   identify({ userId: user.id, clerkId })
@@ -60,7 +65,7 @@ export async function getOrCreateUser(): Promise<UserModel> {
 
 /// Same as above but returns null instead of throwing, for pages that render
 /// differently when signed out.
-export async function getOptionalUser(): Promise<UserModel | null> {
+export async function getOptionalUser(): Promise<UserRow | null> {
   const { userId } = await auth()
   if (!userId) return null
   return getOrCreateUser()

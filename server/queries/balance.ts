@@ -3,7 +3,8 @@ import "server-only"
 import { getOrCreateUser } from "@/lib/auth"
 import { requireGroupMember } from "@/lib/authz"
 import { netBalances, pairwiseBalances, simplifyDebts } from "@/lib/balance"
-import { prisma } from "@/lib/prisma"
+import { db } from "@/lib/db"
+import { toDateOrNull } from "@/lib/db-time"
 
 import { loadGroupLedger } from "./group"
 
@@ -11,20 +12,19 @@ export async function getGroupBalances(groupId: string) {
   const { user } = await requireGroupMember(groupId)
 
   const [group, members, ledger] = await Promise.all([
-    prisma.group.findUniqueOrThrow({
-      where: { id: groupId },
-      select: { currency: true, simplifyDebts: true, name: true },
-    }),
-    prisma.groupMember.findMany({
-      where: { groupId, leftAt: null },
-      select: {
-        userId: true,
-        nickname: true,
-        user: { select: { name: true, email: true, imageUrl: true } },
-      },
-    }),
+    db.orm.public.Group.where((group) => group.id.eq(groupId))
+      .select("currency", "simplifyDebts", "name")
+      .first(),
+    db.orm.public.GroupMember.where((member) => member.groupId.eq(groupId))
+      .where((member) => member.leftAt.isNull())
+      .select("userId", "nickname")
+      .include("user", (person) => person.select("name", "email", "imageUrl"))
+      .all(),
     loadGroupLedger(groupId),
   ])
+
+  // requireGroupMember already proved the row exists.
+  if (!group) throw new Error(`Group ${groupId} disappeared mid-read.`)
 
   const nameOf = new Map(
     members.map((member) => [
@@ -71,29 +71,35 @@ export async function getGroupBalances(groupId: string) {
 export async function getDashboard() {
   const user = await getOrCreateUser()
 
-  const memberships = await prisma.groupMember.findMany({
-    where: { userId: user.id, leftAt: null, group: { deletedAt: null } },
-    select: {
-      group: {
-        select: {
-          id: true,
-          name: true,
-          emoji: true,
-          colorKey: true,
-          currency: true,
-          archivedAt: true,
-        },
-      },
-    },
-  })
+  const memberships = await db.orm.public.GroupMember.where((member) =>
+    member.userId.eq(user.id)
+  )
+    .where((member) => member.leftAt.isNull())
+    .select("groupId")
+    .all()
+
+  const groupIds = memberships.map((membership) => membership.groupId)
+
+  // The ORM has no predicate across a to-one relation, so `deletedAt` is
+  // applied on the Group query rather than through the membership.
+  const rows = groupIds.length
+    ? await db.orm.public.Group.where((group) => group.id.in(groupIds))
+        .where((group) => group.deletedAt.isNull())
+        .select("id", "name", "emoji", "colorKey", "currency", "archivedAt")
+        .all()
+    : []
 
   const groups = await Promise.all(
-    memberships.map(async ({ group }) => {
+    rows.map(async (group) => {
       const ledger = await loadGroupLedger(group.id)
       const net =
         netBalances(ledger).find((entry) => entry.userId === user.id)
           ?.netMinor ?? 0
-      return { ...group, netMinor: net }
+      return {
+        ...group,
+        archivedAt: toDateOrNull(group.archivedAt),
+        netMinor: net,
+      }
     })
   )
 
@@ -109,9 +115,7 @@ export async function getDashboard() {
   return {
     viewerId: user.id,
     viewerName: user.name,
-    groups: groups.sort(
-      (a, b) => Math.abs(b.netMinor) - Math.abs(a.netMinor)
-    ),
+    groups: groups.sort((a, b) => Math.abs(b.netMinor) - Math.abs(a.netMinor)),
     totals: [...totals.entries()].map(([currency, bucket]) => ({
       currency,
       ...bucket,

@@ -5,10 +5,13 @@ import { after } from "next/server"
 
 import { ActionError, defineAction } from "@/lib/action"
 import { requireGroupMember } from "@/lib/authz"
+import { db } from "@/lib/db"
+import { toExchangeRate } from "@/lib/db-decimal"
+import { fromDate, now } from "@/lib/db-time"
 import { publishEvent } from "@/lib/events"
+import { newId } from "@/lib/id"
 import { formatMoney } from "@/lib/money"
 import { recordAudit } from "@/lib/observability/audit"
-import { prisma } from "@/lib/prisma"
 import { sendPushToUsers } from "@/lib/push"
 import {
   commentSchema,
@@ -24,38 +27,63 @@ export const createExpense = defineAction(
   async (input, user) => {
     await requireGroupMember(input.groupId)
 
-    const group = await prisma.group.findUniqueOrThrow({
-      where: { id: input.groupId },
-      select: { id: true, name: true, currency: true },
-    })
+    const group = await db.orm.public.Group.where((entry) =>
+      entry.id.eq(input.groupId)
+    )
+      .select("id", "name", "currency")
+      .first()
+    if (!group) throw new ActionError("That group no longer exists.")
+
     const built = await buildExpense(input, group.currency)
 
-    const { expense, recipients } = await prisma.$transaction(async (tx) => {
-      const created = await tx.expense.create({
-        data: {
-          groupId: input.groupId,
-          description: input.description,
-          notes: input.notes || null,
-          categoryId: input.categoryId,
-          currency: input.currency,
-          amountMinor: input.amountMinor,
-          exchangeRate: input.exchangeRate,
-          groupAmountMinor: built.groupAmountMinor,
-          date: input.date,
-          splitMethod: input.split.method,
-          createdById: user.id,
-          payers: { createMany: { data: built.payers } },
-          splits: { createMany: { data: built.splits } },
-        },
-        include: { payers: true, splits: true },
+    const { expense, recipients } = await db.transaction(async (tx) => {
+      const timestamp = now()
+      const expenseId = newId()
+
+      // Prisma 8 has no nested-create surface for the line tables, so the
+      // parent and its lines are written as separate statements inside the one
+      // transaction — the atomicity the nested form gave is unchanged.
+      const created = await tx.orm.public.Expense.create({
+        id: expenseId,
+        groupId: input.groupId,
+        description: input.description,
+        notes: input.notes || null,
+        categoryId: input.categoryId,
+        currency: input.currency,
+        amountMinor: input.amountMinor,
+        exchangeRate: toExchangeRate(input.exchangeRate),
+        groupAmountMinor: built.groupAmountMinor,
+        date: fromDate(input.date),
+        splitMethod: input.split.method,
+        createdById: user.id,
+        recurringExpenseId: null,
+        receiptUrl: null,
+        createdAt: timestamp,
+        updatedAt: timestamp,
+        deletedAt: null,
       })
+
+      const payers = await tx.orm.public.ExpensePayer.createAll(
+        built.payers.map((payer) => ({ id: newId(), expenseId, ...payer }))
+      )
+      const splits = await tx.orm.public.ExpenseSplit.createAll(
+        built.splits.map((split) => ({
+          id: newId(),
+          expenseId,
+          userId: split.userId,
+          amountMinor: split.amountMinor,
+          groupAmountMinor: split.groupAmountMinor,
+          weight: split.weight ?? null,
+          percentBp: split.percentBp ?? null,
+        }))
+      )
 
       await recordAudit(tx, {
         action: "CREATE",
         entityType: "Expense",
-        entityId: created.id,
+        entityId: expenseId,
         groupId: input.groupId,
-        after: created,
+        after: { ...created, payers, splits },
       })
 
       const amount = formatMoney(input.amountMinor, input.currency)
@@ -65,14 +93,14 @@ export const createExpense = defineAction(
         type: "EXPENSE_ADDED",
         summary: `added ${input.description} for ${amount}`,
         entityType: "Expense",
-        entityId: created.id,
+        entityId: expenseId,
         data: { amountMinor: input.amountMinor, currency: input.currency },
         notify: {
           // Everyone who owes a share of it, not the whole group.
           userIds: built.splits.map((split) => split.userId),
           title: `${user.name ?? "Someone"} added ${input.description}`,
           body: `${amount} in ${group.name}`,
-          href: `/groups/${input.groupId}/expenses/${created.id}`,
+          href: `/groups/${input.groupId}/expenses/${expenseId}`,
         },
       })
 
@@ -100,17 +128,23 @@ export const updateExpense = defineAction(
   async ({ expenseId, ...input }, user) => {
     await requireGroupMember(input.groupId)
 
-    const group = await prisma.group.findUniqueOrThrow({
-      where: { id: input.groupId },
-      select: { currency: true },
-    })
+    const group = await db.orm.public.Group.where((entry) =>
+      entry.id.eq(input.groupId)
+    )
+      .select("currency")
+      .first()
+    if (!group) throw new ActionError("That group no longer exists.")
+
     const built = await buildExpense(input, group.currency)
 
-    await prisma.$transaction(async (tx) => {
-      const before = await tx.expense.findUniqueOrThrow({
-        where: { id: expenseId },
-        include: { payers: true, splits: true },
-      })
+    await db.transaction(async (tx) => {
+      const before = await tx.orm.public.Expense.where((expense) =>
+        expense.id.eq(expenseId)
+      )
+        .include("payers", (payer) => payer.select("userId", "amountMinor"))
+        .include("splits", (split) => split.select("userId", "amountMinor"))
+        .first()
+      if (!before) throw new ActionError("That expense no longer exists.")
       if (before.groupId !== input.groupId) {
         throw new ActionError("That expense belongs to another group.")
       }
@@ -118,26 +152,42 @@ export const updateExpense = defineAction(
 
       // Lines are replaced wholesale: an edit can change who is involved, and
       // reconciling row by row would leave orphans.
-      await tx.expensePayer.deleteMany({ where: { expenseId } })
-      await tx.expenseSplit.deleteMany({ where: { expenseId } })
+      await tx.orm.public.ExpensePayer.where((payer) =>
+        payer.expenseId.eq(expenseId)
+      ).deleteAndCount()
+      await tx.orm.public.ExpenseSplit.where((split) =>
+        split.expenseId.eq(expenseId)
+      ).deleteAndCount()
 
-      const updated = await tx.expense.update({
-        where: { id: expenseId },
-        data: {
-          description: input.description,
-          notes: input.notes || null,
-          categoryId: input.categoryId,
-          currency: input.currency,
-          amountMinor: input.amountMinor,
-          exchangeRate: input.exchangeRate,
-          groupAmountMinor: built.groupAmountMinor,
-          date: input.date,
-          splitMethod: input.split.method,
-          payers: { createMany: { data: built.payers } },
-          splits: { createMany: { data: built.splits } },
-        },
-        include: { payers: true, splits: true },
+      const updated = await tx.orm.public.Expense.where((expense) =>
+        expense.id.eq(expenseId)
+      ).update({
+        description: input.description,
+        notes: input.notes || null,
+        categoryId: input.categoryId,
+        currency: input.currency,
+        amountMinor: input.amountMinor,
+        exchangeRate: toExchangeRate(input.exchangeRate),
+        groupAmountMinor: built.groupAmountMinor,
+        date: fromDate(input.date),
+        splitMethod: input.split.method,
+        updatedAt: now(),
       })
+
+      const payers = await tx.orm.public.ExpensePayer.createAll(
+        built.payers.map((payer) => ({ id: newId(), expenseId, ...payer }))
+      )
+      const splits = await tx.orm.public.ExpenseSplit.createAll(
+        built.splits.map((split) => ({
+          id: newId(),
+          expenseId,
+          userId: split.userId,
+          amountMinor: split.amountMinor,
+          groupAmountMinor: split.groupAmountMinor,
+          weight: split.weight ?? null,
+          percentBp: split.percentBp ?? null,
+        }))
+      )
 
       await recordAudit(tx, {
         action: "UPDATE",
@@ -145,7 +195,7 @@ export const updateExpense = defineAction(
         entityId: expenseId,
         groupId: input.groupId,
         before,
-        after: updated,
+        after: { ...updated, payers, splits },
       })
       await publishEvent(tx, {
         groupId: input.groupId,
@@ -172,18 +222,23 @@ export const deleteExpense = defineAction(
   "expense.delete",
   expenseIdSchema,
   async ({ expenseId }, user) => {
-    const expense = await prisma.expense.findUniqueOrThrow({
-      where: { id: expenseId },
-      include: { splits: { select: { userId: true } } },
-    })
-    await requireGroupMember(expense.groupId)
-    if (expense.deletedAt) throw new ActionError("That expense is already deleted.")
+    const expense = await db.orm.public.Expense.where((entry) =>
+      entry.id.eq(expenseId)
+    )
+      .include("splits", (split) => split.select("userId"))
+      .first()
+    if (!expense) throw new ActionError("That expense no longer exists.")
 
-    await prisma.$transaction(async (tx) => {
-      const updated = await tx.expense.update({
-        where: { id: expenseId },
-        data: { deletedAt: new Date() },
-      })
+    await requireGroupMember(expense.groupId)
+    if (expense.deletedAt)
+      throw new ActionError("That expense is already deleted.")
+
+    await db.transaction(async (tx) => {
+      const timestamp = now()
+      const updated = await tx.orm.public.Expense.where((entry) =>
+        entry.id.eq(expenseId)
+      ).update({ deletedAt: timestamp, updatedAt: timestamp })
+
       await recordAudit(tx, {
         action: "DELETE",
         entityType: "Expense",
@@ -217,19 +272,26 @@ export const addComment = defineAction(
   "expense.comment",
   commentSchema,
   async ({ expenseId, body }, user) => {
-    const expense = await prisma.expense.findUniqueOrThrow({
-      where: { id: expenseId },
-      select: {
-        groupId: true,
-        description: true,
-        splits: { select: { userId: true } },
-      },
-    })
+    const expense = await db.orm.public.Expense.where((entry) =>
+      entry.id.eq(expenseId)
+    )
+      .select("groupId", "description")
+      .include("splits", (split) => split.select("userId"))
+      .first()
+    if (!expense) throw new ActionError("That expense no longer exists.")
+
     await requireGroupMember(expense.groupId)
 
-    const comment = await prisma.$transaction(async (tx) => {
-      const created = await tx.comment.create({
-        data: { expenseId, userId: user.id, body },
+    const comment = await db.transaction(async (tx) => {
+      const timestamp = now()
+      const created = await tx.orm.public.Comment.create({
+        id: newId(),
+        expenseId,
+        userId: user.id,
+        body,
+        createdAt: timestamp,
+        updatedAt: timestamp,
+        deletedAt: null,
       })
       await recordAudit(tx, {
         action: "CREATE",

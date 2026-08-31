@@ -1,47 +1,70 @@
 import "server-only"
 
+import { or } from "@prisma/orm-postgres/orm-client"
+
 import { requireGroupMember } from "@/lib/authz"
-import { prisma } from "@/lib/prisma"
+import { db } from "@/lib/db"
+import { toDate } from "@/lib/db-time"
+import type { Timestamp } from "@/lib/db-time"
 
 export type ExpenseListItem = Awaited<
   ReturnType<typeof listGroupExpenses>
 >["expenses"][number]
 
-/// Cursor pagination on (date, id): a stable key pair, so a new expense added
-/// while someone is scrolling cannot shift the page boundary.
+/// Keyset pagination on (date, id): a stable key pair, so a new expense added
+/// while someone is scrolling cannot shift the page boundary. Prisma 8's
+/// `.cursor(...)` seeks on the ordering columns, so the token carries both.
+function encodeCursor(date: Timestamp, id: string) {
+  return `${date}|${id}`
+}
+
+function decodeCursor(cursor: string) {
+  const separator = cursor.lastIndexOf("|")
+  if (separator === -1) return null
+  return {
+    date: cursor.slice(0, separator) as Timestamp,
+    id: cursor.slice(separator + 1),
+  }
+}
+
 export async function listGroupExpenses(
   groupId: string,
   options: { cursor?: string; take?: number } = {}
 ) {
   const { user } = await requireGroupMember(groupId)
   const take = options.take ?? 30
+  const cursor = options.cursor ? decodeCursor(options.cursor) : null
 
-  const rows = await prisma.expense.findMany({
-    where: { groupId, deletedAt: null },
-    orderBy: [{ date: "desc" }, { id: "desc" }],
-    take: take + 1,
-    ...(options.cursor ? { cursor: { id: options.cursor }, skip: 1 } : {}),
-    select: {
-      id: true,
-      description: true,
-      currency: true,
-      amountMinor: true,
-      groupAmountMinor: true,
-      date: true,
-      splitMethod: true,
-      category: { select: { key: true, label: true, emoji: true } },
-      createdBy: { select: { id: true, name: true, imageUrl: true } },
-      payers: {
-        select: {
-          userId: true,
-          groupAmountMinor: true,
-          user: { select: { name: true, imageUrl: true } },
-        },
-      },
-      splits: { select: { userId: true, groupAmountMinor: true } },
-      _count: { select: { comments: { where: { deletedAt: null } } } },
-    },
-  })
+  let collection = db.orm.public.Expense.where((expense) =>
+    expense.groupId.eq(groupId)
+  )
+    .where((expense) => expense.deletedAt.isNull())
+    .select(
+      "id",
+      "description",
+      "currency",
+      "amountMinor",
+      "groupAmountMinor",
+      "date",
+      "splitMethod"
+    )
+    .include("category", (category) => category.select("key", "label", "emoji"))
+    .include("createdBy", (person) => person.select("id", "name", "imageUrl"))
+    .include("payers", (payer) =>
+      payer
+        .select("userId", "groupAmountMinor")
+        .include("user", (person) => person.select("name", "imageUrl"))
+    )
+    .include("splits", (split) => split.select("userId", "groupAmountMinor"))
+    .include("comments", (comment) =>
+      comment.where((entry) => entry.deletedAt.isNull()).count()
+    )
+    .orderBy([(expense) => expense.date.desc(), (expense) => expense.id.desc()])
+
+  if (cursor) collection = collection.cursor(cursor)
+
+  // One extra row is the "is there a next page" probe.
+  const rows = await collection.limit(take + 1).all()
 
   const hasMore = rows.length > take
   const page = hasMore ? rows.slice(0, take) : rows
@@ -60,7 +83,7 @@ export async function listGroupExpenses(
         currency: expense.currency,
         amountMinor: expense.amountMinor,
         groupAmountMinor: expense.groupAmountMinor,
-        date: expense.date,
+        date: toDate(expense.date),
         splitMethod: expense.splitMethod,
         category: expense.category,
         createdBy: expense.createdBy,
@@ -70,78 +93,90 @@ export async function listGroupExpenses(
           imageUrl: payer.user.imageUrl,
           amountMinor: payer.groupAmountMinor,
         })),
-        commentCount: expense._count.comments,
+        commentCount: expense.comments,
         /// The viewer's stake in this row: positive means they are up on it.
         myImpactMinor: paid - owed,
         involvesMe: paid !== 0 || owed !== 0,
       }
     }),
-    nextCursor: hasMore ? page[page.length - 1]!.id : null,
+    nextCursor: hasMore
+      ? encodeCursor(page[page.length - 1]!.date, page[page.length - 1]!.id)
+      : null,
   }
 }
 
 export async function getExpenseDetail(expenseId: string) {
-  const base = await prisma.expense.findUnique({
-    where: { id: expenseId },
-    select: { groupId: true, deletedAt: true },
-  })
+  const base = await db.orm.public.Expense.where((expense) =>
+    expense.id.eq(expenseId)
+  )
+    .select("groupId", "deletedAt")
+    .first()
   if (!base || base.deletedAt) return null
 
   const { user } = await requireGroupMember(base.groupId)
 
-  const expense = await prisma.expense.findUniqueOrThrow({
-    where: { id: expenseId },
-    select: {
-      id: true,
-      groupId: true,
-      description: true,
-      notes: true,
-      currency: true,
-      amountMinor: true,
-      groupAmountMinor: true,
-      date: true,
-      splitMethod: true,
-      createdAt: true,
-      category: { select: { id: true, key: true, label: true, emoji: true } },
-      createdBy: { select: { id: true, name: true, imageUrl: true } },
-      group: { select: { id: true, name: true, currency: true } },
-      payers: {
-        select: {
-          userId: true,
-          amountMinor: true,
-          user: { select: { name: true, imageUrl: true } },
-        },
-      },
-      splits: {
-        select: {
-          userId: true,
-          amountMinor: true,
-          weight: true,
-          percentBp: true,
-          user: { select: { name: true, imageUrl: true } },
-        },
-      },
-      comments: {
-        where: { deletedAt: null },
-        orderBy: { createdAt: "asc" },
-        select: {
-          id: true,
-          body: true,
-          createdAt: true,
-          user: { select: { id: true, name: true, imageUrl: true } },
-        },
-      },
-    },
-  })
+  const expense = await db.orm.public.Expense.where((entry) =>
+    entry.id.eq(expenseId)
+  )
+    .select(
+      "id",
+      "groupId",
+      "description",
+      "notes",
+      "currency",
+      "amountMinor",
+      "groupAmountMinor",
+      "date",
+      "splitMethod",
+      "createdAt"
+    )
+    .include("category", (category) =>
+      category.select("id", "key", "label", "emoji")
+    )
+    .include("createdBy", (person) => person.select("id", "name", "imageUrl"))
+    .include("group", (group) => group.select("id", "name", "currency"))
+    .include("payers", (payer) =>
+      payer
+        .select("userId", "amountMinor")
+        .include("user", (person) => person.select("name", "imageUrl"))
+    )
+    .include("splits", (split) =>
+      split
+        .select("userId", "amountMinor", "weight", "percentBp")
+        .include("user", (person) => person.select("name", "imageUrl"))
+    )
+    .include("comments", (comment) =>
+      comment
+        .where((entry) => entry.deletedAt.isNull())
+        .orderBy((entry) => entry.createdAt.asc())
+        .select("id", "body", "createdAt")
+        .include("user", (person) => person.select("id", "name", "imageUrl"))
+    )
+    .first()
 
-  return { ...expense, viewerId: user.id }
+  if (!expense) return null
+
+  return {
+    ...expense,
+    date: toDate(expense.date),
+    createdAt: toDate(expense.createdAt),
+    comments: expense.comments.map((comment) => ({
+      ...comment,
+      createdAt: toDate(comment.createdAt),
+    })),
+    viewerId: user.id,
+  }
 }
 
 /// System categories plus anything the group has added.
 export async function listCategories(groupId: string) {
-  return prisma.category.findMany({
-    where: { OR: [{ groupId: null }, { groupId }] },
-    orderBy: [{ sortOrder: "asc" }, { label: "asc" }],
-    select: { id: true, key: true, label: true, emoji: true },
-  })
+  return db.orm.public.Category.where((category) =>
+    or(category.groupId.isNull(), category.groupId.eq(groupId))
+  )
+    .orderBy([
+      (category) => category.sortOrder.asc(),
+      (category) => category.label.asc(),
+    ])
+    .select("id", "key", "label", "emoji")
+    .all()
 }

@@ -1,9 +1,11 @@
 import { verifyWebhook } from "@clerk/nextjs/webhooks"
 import type { NextRequest } from "next/server"
 
+import { db } from "@/lib/db"
+import { now } from "@/lib/db-time"
+import { newId } from "@/lib/id"
 import { log } from "@/lib/observability/logger"
 import { withBackgroundContext } from "@/lib/observability/request"
-import { prisma } from "@/lib/prisma"
 
 /// Keeps our User rows in step with Clerk. `getOrCreateUser()` covers the gap
 /// when a webhook is late, so this handler's job is updates and deletions more
@@ -40,10 +42,23 @@ export async function POST(request: NextRequest) {
           data.username ||
           null
 
-        await prisma.user.upsert({
-          where: { clerkId: data.id },
-          update: { email, name, imageUrl: data.image_url },
-          create: { clerkId: data.id, email, name, imageUrl: data.image_url },
+        const timestamp = now()
+        await db.orm.public.User.where({ clerkId: data.id }).upsert({
+          create: {
+            id: newId(),
+            clerkId: data.id,
+            email,
+            name,
+            imageUrl: data.image_url,
+            createdAt: timestamp,
+            updatedAt: timestamp,
+          },
+          update: {
+            email,
+            name,
+            imageUrl: data.image_url,
+            updatedAt: timestamp,
+          },
         })
         break
       }
@@ -52,10 +67,10 @@ export async function POST(request: NextRequest) {
         if (!event.data.id) break
         // Soft delete only: their name still appears on every expense they were
         // part of, and the ledger has to stay readable.
-        await prisma.user.updateMany({
-          where: { clerkId: event.data.id },
-          data: { deletedAt: new Date() },
-        })
+        const timestamp = now()
+        await db.orm.public.User.where((user) =>
+          user.clerkId.eq(event.data.id!)
+        ).updateAll({ deletedAt: timestamp, updatedAt: timestamp })
         break
       }
 

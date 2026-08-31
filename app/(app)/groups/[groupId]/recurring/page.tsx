@@ -5,7 +5,8 @@ import { RecurringRow } from "@/components/hisaab/recurring-row"
 import { Money } from "@/components/hisaab/money"
 import { SectionHeading } from "@/components/hisaab/section-heading"
 import { describeRecurrence } from "@/lib/recurrence"
-import { prisma } from "@/lib/prisma"
+import { db } from "@/lib/db"
+import { toDate } from "@/lib/db-time"
 import { requireGroupMember } from "@/lib/authz"
 import { getGroupDetail } from "@/server/queries/group"
 
@@ -19,22 +20,22 @@ export default async function GroupRecurringPage({
 
   const [group, templates] = await Promise.all([
     getGroupDetail(groupId),
-    prisma.recurringExpense.findMany({
-      where: { groupId, deletedAt: null },
-      orderBy: { nextRunAt: "asc" },
-      select: {
-        id: true,
-        description: true,
-        currency: true,
-        amountMinor: true,
-        frequency: true,
-        interval: true,
-        anchorDay: true,
-        weekday: true,
-        nextRunAt: true,
-        isPaused: true,
-      },
-    }),
+    db.orm.public.RecurringExpense.where((template) => template.groupId.eq(groupId))
+      .where((template) => template.deletedAt.isNull())
+      .select(
+        "id",
+        "description",
+        "currency",
+        "amountMinor",
+        "frequency",
+        "interval",
+        "anchorDay",
+        "weekday",
+        "nextRunAt",
+        "isPaused"
+      )
+      .orderBy((template) => template.nextRunAt.asc())
+      .all(),
   ])
 
   return (
@@ -71,7 +72,7 @@ export default async function GroupRecurringPage({
                     })}
                     {template.isPaused
                       ? " · paused"
-                      : ` · next ${format(template.nextRunAt, "d MMM")}`}
+                      : ` · next ${format(toDate(template.nextRunAt), "d MMM")}`}
                   </span>
                 </span>
                 <RecurringRow

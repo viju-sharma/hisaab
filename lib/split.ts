@@ -1,4 +1,4 @@
-import type { SplitMethod } from "@/app/generated/prisma/enums"
+import type { SplitMethod } from "@/lib/db-types"
 import type { Minor } from "@/lib/money"
 import { formatMoney, sumMinor } from "@/lib/money"
 

@@ -5,7 +5,9 @@ import { isAuthorisedCron } from "@/lib/cron"
 import { formatMoney } from "@/lib/money"
 import { log } from "@/lib/observability/logger"
 import { withBackgroundContext } from "@/lib/observability/request"
-import { prisma } from "@/lib/prisma"
+import { db } from "@/lib/db"
+import { fromDate, now } from "@/lib/db-time"
+import { newId } from "@/lib/id"
 import { sendPushToUsers } from "@/lib/push"
 import { loadGroupLedger } from "@/server/queries/group"
 
@@ -23,12 +25,14 @@ export async function GET(request: NextRequest) {
   }
 
   return withBackgroundContext("cron:reminders", async () => {
-    const since = new Date(Date.now() - COOLDOWN_MS)
+    const since = fromDate(new Date(Date.now() - COOLDOWN_MS))
 
-    const groups = await prisma.group.findMany({
-      where: { deletedAt: null, archivedAt: null },
-      select: { id: true, name: true, currency: true },
-    })
+    const groups = await db.orm.public.Group.where((group) =>
+      group.deletedAt.isNull()
+    )
+      .where((group) => group.archivedAt.isNull())
+      .select("id", "name", "currency")
+      .all()
 
     let sent = 0
 
@@ -39,38 +43,53 @@ export async function GET(request: NextRequest) {
       )
       if (debtors.length === 0) continue
 
-      const eligible = await prisma.user.findMany({
-        where: {
-          id: { in: debtors.map((entry) => entry.userId) },
-          remindersEnabled: true,
-          deletedAt: null,
-          // Skip anyone already reminded about this group recently.
-          notifications: {
-            none: {
-              groupId: group.id,
-              type: "PAYMENT_REMINDER",
-              createdAt: { gte: since },
-            },
-          },
-        },
-        select: { id: true },
-      })
+      const candidates = await db.orm.public.User.where((user) =>
+        user.id.in(debtors.map((entry) => entry.userId))
+      )
+        .where((user) => user.remindersEnabled.eq(true))
+        .where((user) => user.deletedAt.isNull())
+        .select("id")
+        .all()
+      if (candidates.length === 0) continue
+
+      // Skip anyone already reminded about this group recently. Read as its own
+      // query rather than a `none` relation predicate so the cooldown stays
+      // legible next to the window it is measured against.
+      const reminded = await db.orm.public.Notification.where((notification) =>
+        notification.userId.in(candidates.map((user) => user.id))
+      )
+        .where((notification) => notification.groupId.eq(group.id))
+        .where((notification) => notification.type.eq("PAYMENT_REMINDER"))
+        .where((notification) => notification.createdAt.gte(since))
+        .select("userId")
+        .all()
+      const recentlyReminded = new Set(reminded.map((entry) => entry.userId))
+
+      const eligible = candidates.filter(
+        (user) => !recentlyReminded.has(user.id)
+      )
       if (eligible.length === 0) continue
 
       const owedBy = new Map(
         debtors.map((entry) => [entry.userId, -entry.netMinor])
       )
 
-      await prisma.notification.createMany({
-        data: eligible.map((user) => ({
+      await db.orm.public.Notification.createAll(
+        eligible.map((user) => ({
+          id: newId(),
           userId: user.id,
           groupId: group.id,
           type: "PAYMENT_REMINDER" as const,
           title: `You owe ${formatMoney(owedBy.get(user.id) ?? 0, group.currency)} in ${group.name}`,
           body: "Settle up to keep the group balanced.",
           href: `/groups/${group.id}/balances`,
-        })),
-      })
+          entityType: null,
+          entityId: null,
+          data: null,
+          readAt: null,
+          createdAt: now(),
+        }))
+      )
 
       for (const user of eligible) {
         await sendPushToUsers([user.id], {

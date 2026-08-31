@@ -1,6 +1,6 @@
 import { z } from "zod"
 
-import type { UserModel } from "@/app/generated/prisma/models"
+import type { UserRow } from "@/lib/db-types"
 import { ForbiddenError, UnauthorizedError, getOrCreateUser } from "@/lib/auth"
 import { log } from "@/lib/observability/logger"
 import { withRequestContext } from "@/lib/observability/request"
@@ -25,7 +25,7 @@ export class ActionError extends Error {
 export function defineAction<Schema extends z.ZodType, Result>(
   name: string,
   schema: Schema,
-  handler: (input: z.output<Schema>, user: UserModel) => Promise<Result>
+  handler: (input: z.output<Schema>, user: UserRow) => Promise<Result>
 ) {
   return async (rawInput: z.input<Schema>): Promise<ActionResult<Result>> => {
     return withRequestContext(`action:${name}`, async () => {

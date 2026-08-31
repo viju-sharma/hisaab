@@ -2,7 +2,7 @@ import "server-only"
 
 import { ActionError } from "@/lib/action"
 import { convertMinor } from "@/lib/money"
-import { prisma } from "@/lib/prisma"
+import { db } from "@/lib/db"
 import {
   SplitError,
   allocateByWeight,
@@ -11,7 +11,11 @@ import {
 } from "@/lib/split"
 import type { CreateExpenseInput } from "@/lib/validation"
 
-export type Line = { userId: string; amountMinor: number; groupAmountMinor: number }
+export type Line = {
+  userId: string
+  amountMinor: number
+  groupAmountMinor: number
+}
 
 export type BuiltExpense = {
   groupAmountMinor: number
@@ -28,10 +32,12 @@ export async function buildExpense(
   input: CreateExpenseInput,
   groupCurrency: string
 ): Promise<BuiltExpense> {
-  const members = await prisma.groupMember.findMany({
-    where: { groupId: input.groupId, leftAt: null },
-    select: { userId: true },
-  })
+  const members = await db.orm.public.GroupMember.where((member) =>
+    member.groupId.eq(input.groupId)
+  )
+    .where((member) => member.leftAt.isNull())
+    .select("userId")
+    .all()
   const memberIds = members.map((member) => member.userId)
   const memberSet = new Set(memberIds)
 

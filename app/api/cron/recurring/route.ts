@@ -1,13 +1,22 @@
 import type { NextRequest } from "next/server"
 
 import { isAuthorisedCron } from "@/lib/cron"
+import { db, isUniqueViolation } from "@/lib/db"
+import { toExchangeRate } from "@/lib/db-decimal"
+import {
+  fromDate,
+  fromDateOrNull,
+  now as timestampNow,
+  toDate,
+  toDateOrNull,
+} from "@/lib/db-time"
 import { publishEvent } from "@/lib/events"
+import { newId } from "@/lib/id"
 import { formatMoney } from "@/lib/money"
 import { recordAudit } from "@/lib/observability/audit"
 import { log } from "@/lib/observability/logger"
 import { withBackgroundContext } from "@/lib/observability/request"
 import { withSpan } from "@/lib/observability/span"
-import { prisma } from "@/lib/prisma"
 import { sendPushToUsers } from "@/lib/push"
 import { dueOccurrences, nextOccurrence } from "@/lib/recurrence"
 import { createExpenseSchema } from "@/lib/validation"
@@ -26,15 +35,26 @@ export async function GET(request: NextRequest) {
   return withBackgroundContext("cron:recurring", async () => {
     const now = new Date()
 
-    const templates = await prisma.recurringExpense.findMany({
-      where: {
-        isPaused: false,
-        deletedAt: null,
-        nextRunAt: { lte: now },
-        group: { deletedAt: null, archivedAt: null },
-      },
-      include: { group: { select: { id: true, name: true, currency: true } } },
-    })
+    // The ORM has no predicate across a to-one relation, so the live groups are
+    // resolved first and the templates are scoped to them.
+    const liveGroups = await db.orm.public.Group.where((group) =>
+      group.deletedAt.isNull()
+    )
+      .where((group) => group.archivedAt.isNull())
+      .select("id", "name", "currency")
+      .all()
+
+    const groupById = new Map(liveGroups.map((group) => [group.id, group]))
+
+    const templates = liveGroups.length
+      ? await db.orm.public.RecurringExpense.where((template) =>
+          template.isPaused.eq(false)
+        )
+          .where((template) => template.deletedAt.isNull())
+          .where((template) => template.nextRunAt.lte(fromDate(now)))
+          .where((template) => template.groupId.in([...groupById.keys()]))
+          .all()
+      : []
 
     log.info("cron.recurring.scan", { due: templates.length })
 
@@ -42,39 +62,41 @@ export async function GET(request: NextRequest) {
     let skipped = 0
 
     for (const template of templates) {
+      const group = groupById.get(template.groupId)!
       const rule = {
         frequency: template.frequency,
         interval: template.interval,
         anchorDay: template.anchorDay,
         weekday: template.weekday,
-        endDate: template.endDate,
+        endDate: toDateOrNull(template.endDate),
       }
 
       const occurrences = dueOccurrences(
         rule,
-        template.lastRunAt,
-        template.startDate,
+        toDateOrNull(template.lastRunAt),
+        toDate(template.startDate),
         now
       )
 
       for (const occurrence of occurrences) {
         const outcome = await withSpan(
           "recurring.materialise",
-          () => materialise(template, occurrence),
+          () => materialise(template, group, occurrence),
           { recurringId: template.id, on: occurrence.toISOString() }
         )
         if (outcome === "created") created += 1
         else skipped += 1
       }
 
-      const upcoming = nextOccurrence(rule, occurrences.at(-1) ?? now)
-      await prisma.recurringExpense.update({
-        where: { id: template.id },
-        data: {
-          lastRunAt: occurrences.at(-1) ?? template.lastRunAt,
-          nextRunAt: upcoming ?? template.nextRunAt,
-          isPaused: upcoming ? template.isPaused : true,
-        },
+      const lastOccurrence = occurrences.at(-1)
+      const upcoming = nextOccurrence(rule, lastOccurrence ?? now)
+      await db.orm.public.RecurringExpense.where((entry) =>
+        entry.id.eq(template.id)
+      ).update({
+        lastRunAt: fromDateOrNull(lastOccurrence) ?? template.lastRunAt,
+        nextRunAt: upcoming ? fromDate(upcoming) : template.nextRunAt,
+        isPaused: upcoming ? template.isPaused : true,
+        updatedAt: timestampNow(),
       })
     }
 
@@ -84,10 +106,11 @@ export async function GET(request: NextRequest) {
 }
 
 type Template = Awaited<
-  ReturnType<typeof prisma.recurringExpense.findMany>
->[number] & { group: { id: string; name: string; currency: string } }
+  ReturnType<typeof db.orm.public.RecurringExpense.all>
+>[number]
+type Group = { id: string; name: string; currency: string }
 
-async function materialise(template: Template, occurrence: Date) {
+async function materialise(template: Template, group: Group, occurrence: Date) {
   const parsed = createExpenseSchema.safeParse({
     groupId: template.groupId,
     description: template.description,
@@ -104,58 +127,79 @@ async function materialise(template: Template, occurrence: Date) {
   if (!parsed.success) {
     // A template can go stale — a member leaves and their split no longer
     // validates. Record why rather than failing the whole run.
-    await prisma.recurringRun.create({
-      data: {
-        recurringExpenseId: template.id,
-        scheduledFor: occurrence,
-        error: "Template no longer valid",
-      },
+    await db.orm.public.RecurringRun.create({
+      id: newId(),
+      recurringExpenseId: template.id,
+      scheduledFor: fromDate(occurrence),
+      ranAt: timestampNow(),
+      expenseId: null,
+      error: "Template no longer valid",
     })
     log.warn("recurring.invalid", { recurringId: template.id })
     return "skipped" as const
   }
 
-  const built = await buildExpense(parsed.data, template.group.currency)
+  const built = await buildExpense(parsed.data, group.currency)
 
   try {
-    const recipients = await prisma.$transaction(async (tx) => {
+    const recipients = await db.transaction(async (tx) => {
+      const timestamp = timestampNow()
+
       // Claim the slot first: the unique key on (template, scheduledFor) makes
       // a concurrent or repeated run collide here instead of double-charging.
-      const run = await tx.recurringRun.create({
-        data: {
-          recurringExpenseId: template.id,
-          scheduledFor: occurrence,
-        },
+      const run = await tx.orm.public.RecurringRun.create({
+        id: newId(),
+        recurringExpenseId: template.id,
+        scheduledFor: fromDate(occurrence),
+        ranAt: timestamp,
+        expenseId: null,
+        error: null,
       })
 
-      const expense = await tx.expense.create({
-        data: {
-          groupId: template.groupId,
-          description: template.description,
-          notes: template.notes,
-          categoryId: template.categoryId,
-          currency: template.currency,
-          amountMinor: template.amountMinor,
-          exchangeRate: 1,
-          groupAmountMinor: built.groupAmountMinor,
-          date: occurrence,
-          splitMethod: template.splitMethod,
-          createdById: template.createdById,
-          recurringExpenseId: template.id,
-          payers: { createMany: { data: built.payers } },
-          splits: { createMany: { data: built.splits } },
-        },
+      const expenseId = newId()
+      const expense = await tx.orm.public.Expense.create({
+        id: expenseId,
+        groupId: template.groupId,
+        description: template.description,
+        notes: template.notes,
+        categoryId: template.categoryId,
+        currency: template.currency,
+        amountMinor: template.amountMinor,
+        exchangeRate: toExchangeRate(1),
+        groupAmountMinor: built.groupAmountMinor,
+        date: fromDate(occurrence),
+        splitMethod: template.splitMethod,
+        createdById: template.createdById,
+        recurringExpenseId: template.id,
+        receiptUrl: null,
+        createdAt: timestamp,
+        updatedAt: timestamp,
+        deletedAt: null,
       })
 
-      await tx.recurringRun.update({
-        where: { id: run.id },
-        data: { expenseId: expense.id },
-      })
+      await tx.orm.public.ExpensePayer.createAll(
+        built.payers.map((payer) => ({ id: newId(), expenseId, ...payer }))
+      )
+      await tx.orm.public.ExpenseSplit.createAll(
+        built.splits.map((split) => ({
+          id: newId(),
+          expenseId,
+          userId: split.userId,
+          amountMinor: split.amountMinor,
+          groupAmountMinor: split.groupAmountMinor,
+          weight: split.weight ?? null,
+          percentBp: split.percentBp ?? null,
+        }))
+      )
+
+      await tx.orm.public.RecurringRun.where((entry) =>
+        entry.id.eq(run.id)
+      ).update({ expenseId })
 
       await recordAudit(tx, {
         action: "CREATE",
         entityType: "Expense",
-        entityId: expense.id,
+        entityId: expenseId,
         groupId: template.groupId,
         after: expense,
       })
@@ -168,19 +212,19 @@ async function materialise(template: Template, occurrence: Date) {
           template.currency
         )}`,
         entityType: "Expense",
-        entityId: expense.id,
+        entityId: expenseId,
         notify: {
           userIds: built.splits.map((split) => split.userId),
           title: `${template.description} was added automatically`,
-          body: `${formatMoney(template.amountMinor, template.currency)} in ${template.group.name}`,
-          href: `/groups/${template.groupId}/expenses/${expense.id}`,
+          body: `${formatMoney(template.amountMinor, template.currency)} in ${group.name}`,
+          href: `/groups/${template.groupId}/expenses/${expenseId}`,
         },
       })
     })
 
     await sendPushToUsers(recipients, {
       title: `${template.description} was added automatically`,
-      body: `${formatMoney(template.amountMinor, template.currency)} in ${template.group.name}`,
+      body: `${formatMoney(template.amountMinor, template.currency)} in ${group.name}`,
       href: `/groups/${template.groupId}`,
       tag: `recurring-${template.id}`,
     })
@@ -188,7 +232,7 @@ async function materialise(template: Template, occurrence: Date) {
     return "created" as const
   } catch (error) {
     // A unique-constraint failure means another run already claimed this slot.
-    if ((error as { code?: string }).code === "P2002") {
+    if (isUniqueViolation(error)) {
       log.debug("recurring.alreadyMaterialised", { recurringId: template.id })
       return "skipped" as const
     }

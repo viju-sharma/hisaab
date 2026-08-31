@@ -2,8 +2,8 @@ import "server-only"
 
 import webpush from "web-push"
 
+import { db } from "@/lib/db"
 import { log } from "@/lib/observability/logger"
-import { prisma } from "@/lib/prisma"
 
 export type PushPayload = {
   title: string
@@ -39,9 +39,11 @@ export async function sendPushToUsers(userIds: string[], payload: PushPayload) {
     return
   }
 
-  const subscriptions = await prisma.pushSubscription.findMany({
-    where: { userId: { in: userIds } },
-  })
+  const subscriptions = await db.orm.public.PushSubscription.where(
+    (subscription) => subscription.userId.in(userIds)
+  )
+    .select("id", "endpoint", "p256dh", "auth")
+    .all()
   if (subscriptions.length === 0) return
 
   const body = JSON.stringify(payload)
@@ -61,13 +63,16 @@ export async function sendPushToUsers(userIds: string[], payload: PushPayload) {
         const status = (error as { statusCode?: number }).statusCode
         // 404/410 mean the browser dropped the subscription for good.
         if (status === 404 || status === 410) expired.push(subscription.id)
-        else log.warn("push.failed", { status, subscriptionId: subscription.id })
+        else
+          log.warn("push.failed", { status, subscriptionId: subscription.id })
       }
     })
   )
 
   if (expired.length > 0) {
-    await prisma.pushSubscription.deleteMany({ where: { id: { in: expired } } })
+    await db.orm.public.PushSubscription.where((subscription) =>
+      subscription.id.in(expired)
+    ).deleteAndCount()
     log.info("push.pruned", { count: expired.length })
   }
 

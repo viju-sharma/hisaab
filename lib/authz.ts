@@ -1,13 +1,12 @@
-import type { MemberRole } from "@/app/generated/prisma/enums"
-import type { GroupMemberModel, UserModel } from "@/app/generated/prisma/models"
 import { ForbiddenError, getOrCreateUser } from "@/lib/auth"
-import { prisma } from "@/lib/prisma"
+import { db } from "@/lib/db"
+import type { GroupMemberRow, MemberRole, UserRow } from "@/lib/db-types"
 
 const RANK: Record<MemberRole, number> = { MEMBER: 0, ADMIN: 1, OWNER: 2 }
 
 export type GroupAccess = {
-  user: UserModel
-  membership: GroupMemberModel
+  user: UserRow
+  membership: GroupMemberRow
 }
 
 /// The real authorisation boundary. Next's proxy runs before rendering and the
@@ -19,9 +18,10 @@ export async function requireGroupMember(
 ): Promise<GroupAccess> {
   const user = await getOrCreateUser()
 
-  const membership = await prisma.groupMember.findUnique({
-    where: { groupId_userId: { groupId, userId: user.id } },
-  })
+  const membership = await db.orm.public.GroupMember.where({
+    groupId,
+    userId: user.id,
+  }).first()
 
   if (!membership || membership.leftAt) {
     throw new ForbiddenError("You are not a member of this group.")

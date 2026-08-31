@@ -1,11 +1,15 @@
 import "dotenv/config"
 
-import { PrismaPg } from "@prisma/adapter-pg"
+import postgres from "@prisma/orm-postgres/runtime"
 
-import { PrismaClient } from "../app/generated/prisma/client"
+import type { Contract } from "../generated/prisma8/contract"
+import contractJson from "../generated/prisma8/contract.json" with { type: "json" }
+import { fromDate } from "../lib/db-time"
+import { newId } from "../lib/id"
 
-const prisma = new PrismaClient({
-  adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL! }),
+const db = postgres<Contract>({
+  contractJson,
+  url: process.env.DATABASE_URL,
 })
 
 /// Shared with every group (groupId null). Ordered by how often an Indian
@@ -32,17 +36,24 @@ const CATEGORIES = [
 
 async function main() {
   for (const [index, category] of CATEGORIES.entries()) {
-    const existing = await prisma.category.findFirst({
-      where: { groupId: null, key: category.key },
-    })
+    const existing = await db.orm.public.Category.where((entry) =>
+      entry.groupId.isNull()
+    )
+      .where((entry) => entry.key.eq(category.key))
+      .first()
+
     if (existing) {
-      await prisma.category.update({
-        where: { id: existing.id },
-        data: { ...category, sortOrder: index },
-      })
+      await db.orm.public.Category.where((entry) =>
+        entry.id.eq(existing.id)
+      ).update({ ...category, sortOrder: index })
     } else {
-      await prisma.category.create({
-        data: { ...category, sortOrder: index },
+      await db.orm.public.Category.create({
+        id: newId(),
+        groupId: null,
+        ...category,
+        color: null,
+        sortOrder: index,
+        createdAt: fromDate(new Date()),
       })
     }
   }
@@ -54,4 +65,4 @@ main()
     console.error(error)
     process.exit(1)
   })
-  .finally(() => prisma.$disconnect())
+  .finally(() => db.close())
