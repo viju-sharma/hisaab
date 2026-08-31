@@ -5,7 +5,7 @@ import { ArrowRight } from "lucide-react"
 import { HisaabLogo } from "@/components/brand/logo"
 import { ThemeSwitcher } from "@/components/hisaab/theme-switcher"
 import { AppPreview } from "@/components/marketing/app-preview"
-import { Reveal, Stagger, StaggerItem } from "@/components/motion/reveal"
+import { Reveal } from "@/components/motion/reveal"
 import { Button } from "@/components/ui/button"
 
 const POINTS = [
@@ -54,39 +54,40 @@ export default function LandingPage() {
       <main>
         <section className="mx-auto max-w-6xl px-6">
           <div className="grid gap-14 border-b py-14 md:grid-cols-12 md:gap-12 md:py-20">
-            <Stagger className="md:col-span-7">
-              <StaggerItem>
+            {/* Staggered in CSS with delays rather than through the motion
+                runtime: this is the fold of a static page, and it has to paint
+                before any JavaScript arrives. */}
+            <div className="md:col-span-7">
+              <div className="rise-in">
                 <p className="label-mono text-muted-foreground">
                   हिसाब — shared expenses, settled
                 </p>
-              </StaggerItem>
+              </div>
 
               {/* The headline is the design. Size and tracking do the work a
                   second typeface was doing before. */}
-              <StaggerItem>
-                <h1 className="font-display mt-6 text-[3.25rem] leading-[0.93] font-medium text-balance md:text-[5.25rem]">
+              <div className="rise-in" style={{ animationDelay: "0.07s" }}>
+                <h1 className="mt-6 font-display text-[3.25rem] leading-[0.93] font-medium text-balance md:text-[5.25rem]">
                   {/* The breaks are the desktop composition; on a narrow screen
                       they fight the natural wrap, so they are switched off. */}
-                  Who paid, who owes,{" "}
-                  <br className="hidden md:inline" />
-                  and what it takes{" "}
-                  <br className="hidden md:inline" />
+                  Who paid, who owes, <br className="hidden md:inline" />
+                  and what it takes <br className="hidden md:inline" />
                   <span className="relative inline-block">
                     to be square.
                     <span className="absolute inset-x-0 -bottom-2 h-[0.055em] bg-brand md:-bottom-3" />
                   </span>
                 </h1>
-              </StaggerItem>
+              </div>
 
-              <StaggerItem>
-                <p className="mt-8 max-w-md text-lg leading-relaxed text-muted-foreground text-pretty">
+              <div className="rise-in" style={{ animationDelay: "0.14s" }}>
+                <p className="mt-8 max-w-md text-lg leading-relaxed text-pretty text-muted-foreground">
                   Hisaab keeps the ledger for your flat, your trip, and the
                   dinner nobody wants to work out. In rupees, on every device,
                   without the spreadsheet.
                 </p>
-              </StaggerItem>
+              </div>
 
-              <StaggerItem>
+              <div className="rise-in" style={{ animationDelay: "0.21s" }}>
                 <div className="mt-9 flex flex-wrap items-center gap-2.5">
                   <SignUpButton>
                     <Button size="lg">
@@ -98,18 +99,23 @@ export default function LandingPage() {
                     <Link href="/join">I have an invite code</Link>
                   </Button>
                 </div>
-              </StaggerItem>
+              </div>
 
-              <StaggerItem>
+              <div className="rise-in" style={{ animationDelay: "0.28s" }}>
                 <p className="label-mono mt-6 text-muted-foreground">
                   Free — invite by code or link, no email required
                 </p>
-              </StaggerItem>
-            </Stagger>
+              </div>
+            </div>
 
-            <Reveal className="md:col-span-5 md:pt-10" delay={0.15}>
+            {/* Beside the hero on desktop, so it is above the fold there too
+                and gets the same CSS treatment rather than the JS one. */}
+            <div
+              className="rise-in md:col-span-5 md:pt-10"
+              style={{ animationDelay: "0.35s" }}
+            >
               <AppPreview />
-            </Reveal>
+            </div>
           </div>
         </section>
 
@@ -135,7 +141,7 @@ export default function LandingPage() {
                       {point.title}
                     </span>
                   </dt>
-                  <dd className="text-muted-foreground text-pretty md:col-span-6 md:col-start-7">
+                  <dd className="text-pretty text-muted-foreground md:col-span-6 md:col-start-7">
                     {point.body}
                   </dd>
                 </Reveal>
@@ -146,7 +152,7 @@ export default function LandingPage() {
 
         <section className="mx-auto max-w-6xl px-6">
           <Reveal className="py-20 md:py-28">
-            <h2 className="font-display max-w-2xl text-[2.5rem] leading-[0.95] font-medium text-balance md:text-6xl">
+            <h2 className="max-w-2xl font-display text-[2.5rem] leading-[0.95] font-medium text-balance md:text-6xl">
               Stop keeping score in your head.
             </h2>
             <div className="mt-9">
