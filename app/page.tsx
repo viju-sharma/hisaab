@@ -1,12 +1,11 @@
 import Link from "next/link"
-import { redirect } from "next/navigation"
 import { SignInButton, SignUpButton } from "@clerk/nextjs"
-import { auth } from "@clerk/nextjs/server"
 import { ArrowRight } from "lucide-react"
 
 import { HisaabLogo } from "@/components/brand/logo"
 import { ThemeSwitcher } from "@/components/hisaab/theme-switcher"
 import { AppPreview } from "@/components/marketing/app-preview"
+import { Reveal, Stagger, StaggerItem } from "@/components/motion/reveal"
 import { Button } from "@/components/ui/button"
 
 const POINTS = [
@@ -28,10 +27,11 @@ const POINTS = [
   },
 ]
 
-export default async function LandingPage() {
-  const { userId } = await auth()
-  if (userId) redirect("/dashboard")
-
+/// Deliberately free of `auth()`: the signed-in redirect lives in the proxy, so
+/// this page prerenders at build time and is served from the edge as static
+/// HTML. It is the first thing anyone sees and the only page with no reason to
+/// wait on a server.
+export default function LandingPage() {
   return (
     <div className="min-h-svh">
       <header className="border-b">
@@ -54,52 +54,62 @@ export default async function LandingPage() {
       <main>
         <section className="mx-auto max-w-6xl px-6">
           <div className="grid gap-14 border-b py-14 md:grid-cols-12 md:gap-12 md:py-20">
-            <div className="md:col-span-7">
-              <p className="label-mono text-muted-foreground">
-                हिसाब — shared expenses, settled
-              </p>
+            <Stagger className="md:col-span-7">
+              <StaggerItem>
+                <p className="label-mono text-muted-foreground">
+                  हिसाब — shared expenses, settled
+                </p>
+              </StaggerItem>
 
               {/* The headline is the design. Size and tracking do the work a
                   second typeface was doing before. */}
-              <h1 className="font-display mt-6 text-[3.25rem] leading-[0.93] font-medium text-balance md:text-[5.25rem]">
-                {/* The breaks are the desktop composition; on a narrow screen
-                    they fight the natural wrap, so they are switched off. */}
-                Who paid, who owes,{" "}
-                <br className="hidden md:inline" />
-                and what it takes{" "}
-                <br className="hidden md:inline" />
-                <span className="relative inline-block">
-                  to be square.
-                  <span className="absolute inset-x-0 -bottom-2 h-[0.055em] bg-brand md:-bottom-3" />
-                </span>
-              </h1>
+              <StaggerItem>
+                <h1 className="font-display mt-6 text-[3.25rem] leading-[0.93] font-medium text-balance md:text-[5.25rem]">
+                  {/* The breaks are the desktop composition; on a narrow screen
+                      they fight the natural wrap, so they are switched off. */}
+                  Who paid, who owes,{" "}
+                  <br className="hidden md:inline" />
+                  and what it takes{" "}
+                  <br className="hidden md:inline" />
+                  <span className="relative inline-block">
+                    to be square.
+                    <span className="absolute inset-x-0 -bottom-2 h-[0.055em] bg-brand md:-bottom-3" />
+                  </span>
+                </h1>
+              </StaggerItem>
 
-              <p className="mt-8 max-w-md text-lg leading-relaxed text-muted-foreground text-pretty">
-                Hisaab keeps the ledger for your flat, your trip, and the dinner
-                nobody wants to work out. In rupees, on every device, without
-                the spreadsheet.
-              </p>
+              <StaggerItem>
+                <p className="mt-8 max-w-md text-lg leading-relaxed text-muted-foreground text-pretty">
+                  Hisaab keeps the ledger for your flat, your trip, and the
+                  dinner nobody wants to work out. In rupees, on every device,
+                  without the spreadsheet.
+                </p>
+              </StaggerItem>
 
-              <div className="mt-9 flex flex-wrap items-center gap-2.5">
-                <SignUpButton>
-                  <Button size="lg">
-                    Start a group
-                    <ArrowRight data-icon="inline-end" />
+              <StaggerItem>
+                <div className="mt-9 flex flex-wrap items-center gap-2.5">
+                  <SignUpButton>
+                    <Button size="lg">
+                      Start a group
+                      <ArrowRight data-icon="inline-end" />
+                    </Button>
+                  </SignUpButton>
+                  <Button asChild size="lg" variant="outline">
+                    <Link href="/join">I have an invite code</Link>
                   </Button>
-                </SignUpButton>
-                <Button asChild size="lg" variant="outline">
-                  <Link href="/join">I have an invite code</Link>
-                </Button>
-              </div>
+                </div>
+              </StaggerItem>
 
-              <p className="label-mono mt-6 text-muted-foreground">
-                Free — invite by code or link, no email required
-              </p>
-            </div>
+              <StaggerItem>
+                <p className="label-mono mt-6 text-muted-foreground">
+                  Free — invite by code or link, no email required
+                </p>
+              </StaggerItem>
+            </Stagger>
 
-            <div className="md:col-span-5 md:pt-10">
+            <Reveal className="md:col-span-5 md:pt-10" delay={0.15}>
               <AppPreview />
-            </div>
+            </Reveal>
           </div>
         </section>
 
@@ -110,7 +120,10 @@ export default async function LandingPage() {
             <h2 className="label-mono text-muted-foreground">What it does</h2>
             <dl className="mt-8">
               {POINTS.map((point, index) => (
-                <div
+                // The rule and spacing live on the Reveal itself: wrapping each
+                // row in an extra element would make every row a `:first-child`
+                // and every row would lose its top border.
+                <Reveal
                   key={point.title}
                   className="grid gap-2 border-t py-7 first:border-t-0 first:pt-0 md:grid-cols-12 md:gap-8"
                 >
@@ -125,14 +138,14 @@ export default async function LandingPage() {
                   <dd className="text-muted-foreground text-pretty md:col-span-6 md:col-start-7">
                     {point.body}
                   </dd>
-                </div>
+                </Reveal>
               ))}
             </dl>
           </div>
         </section>
 
         <section className="mx-auto max-w-6xl px-6">
-          <div className="py-20 md:py-28">
+          <Reveal className="py-20 md:py-28">
             <h2 className="font-display max-w-2xl text-[2.5rem] leading-[0.95] font-medium text-balance md:text-6xl">
               Stop keeping score in your head.
             </h2>
@@ -144,7 +157,7 @@ export default async function LandingPage() {
                 </Button>
               </SignUpButton>
             </div>
-          </div>
+          </Reveal>
         </section>
       </main>
 

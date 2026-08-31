@@ -2,6 +2,7 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
+import { motion, useReducedMotion } from "motion/react"
 import { UserButton } from "@clerk/nextjs"
 import { Plus } from "lucide-react"
 
@@ -31,6 +32,7 @@ export function AppShell({
   children: React.ReactNode
 }) {
   const pathname = usePathname()
+  const reducedMotion = useReducedMotion()
   const isActive = (href: string) =>
     pathname === href || pathname.startsWith(`${href}/`)
 
@@ -118,7 +120,18 @@ export function AppShell({
       </header>
 
       <main className="mx-auto w-full max-w-3xl flex-1 px-4 pb-28 md:px-8 md:pt-8 md:pb-16">
-        {children}
+        {/* Keyed on the path so each route settles in rather than replacing the
+            last one mid-blink. The distance is deliberately tiny: this runs on
+            every navigation, and anything larger would become the slowest part
+            of a fast page. */}
+        <motion.div
+          key={pathname}
+          initial={reducedMotion ? { opacity: 0 } : { opacity: 0, y: 6 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.24, ease: [0.16, 1, 0.3, 1] }}
+        >
+          {children}
+        </motion.div>
       </main>
 
       <nav className="fixed inset-x-0 bottom-0 z-30 border-t bg-background/90 backdrop-blur-md md:hidden pb-safe">

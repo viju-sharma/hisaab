@@ -9,6 +9,7 @@ import { ThemeProvider } from "@/components/theme-provider"
 import { ThemeScript } from "@/components/theme-script"
 import { Toaster } from "@/components/ui/sonner"
 import { TooltipProvider } from "@/components/ui/tooltip"
+import { siteUrl } from "@/lib/site-url"
 import { cn } from "@/lib/utils"
 
 /// One grotesque for everything. A second display face was doing the work a
@@ -23,6 +24,9 @@ const fontSans = Archivo({
 const fontMono = Geist_Mono({ subsets: ["latin"], variable: "--font-mono" })
 
 export const metadata: Metadata = {
+  // Absolute URLs for canonical links and social cards; without it Next warns
+  // and resolves them against localhost.
+  metadataBase: new URL(siteUrl),
   title: {
     default: "Hisaab — shared expenses, settled",
     template: "%s · Hisaab",
