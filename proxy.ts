@@ -18,6 +18,10 @@ const isPublicRoute = createRouteMatcher([
   "/api/webhooks(.*)",
   "/api/cron(.*)",
   "/manifest.webmanifest",
+  // Crawler-facing and requested without a document `Accept`, which makes
+  // `auth.protect()` answer 404 rather than redirect. They have to be listed.
+  "/robots.txt",
+  "/sitemap.xml",
   "/sw.js",
   "/icons(.*)",
 ])
