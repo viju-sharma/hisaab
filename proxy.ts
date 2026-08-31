@@ -11,7 +11,9 @@ const isPublicRoute = createRouteMatcher([
   "/",
   "/sign-in(.*)",
   "/sign-up(.*)",
-  "/join(.*)",
+  // Only the invite-link landing is public. Bare /join lives inside the signed
+  // -in shell, so leaving it public rendered the app layout without a user.
+  "/join/(.*)",
   "/offline",
   "/api/webhooks(.*)",
   "/api/cron(.*)",
