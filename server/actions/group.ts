@@ -30,7 +30,6 @@ export const createGroup = defineAction(
           name: input.name,
           description: input.description || null,
           type: input.type,
-          emoji: input.emoji,
           colorKey: input.colorKey,
           currency: input.currency,
           simplifyDebts: input.simplifyDebts,

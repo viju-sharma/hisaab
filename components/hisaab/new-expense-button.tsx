@@ -4,6 +4,7 @@ import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { Plus } from "lucide-react"
 
+import { GroupMark } from "@/components/hisaab/group-mark"
 import { Button } from "@/components/ui/button"
 import {
   Drawer,
@@ -78,9 +79,12 @@ export function NewExpenseButton({
               style={{ "--stagger": index } as React.CSSProperties}
               className="animate-row-in flex items-center gap-3 rounded-xl px-3 py-3 text-left text-sm font-medium transition-colors hover:bg-muted active:bg-muted"
             >
-              <span className="text-lg" aria-hidden>
-                {group.emoji}
-              </span>
+              <GroupMark
+                name={group.name}
+                colorKey={group.colorKey}
+                id={group.id}
+                className="size-7 text-[0.6rem]"
+              />
               {group.name}
             </button>
           ))}

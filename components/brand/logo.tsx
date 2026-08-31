@@ -32,11 +32,11 @@ export function HisaabLogo({
 }) {
   return (
     <span className={cn("flex items-center gap-2", className)}>
-      <span className="flex size-8 items-center justify-center rounded-[0.55rem] bg-primary text-primary-foreground">
-        <HisaabMark className="size-5" />
+      <span className="flex size-7 items-center justify-center rounded-[0.2rem] bg-foreground text-background">
+        <HisaabMark className="size-4.5" />
       </span>
       {showWordmark ? (
-        <span className="font-display text-[1.15rem] leading-none tracking-tight">
+        <span className="font-display text-[1.05rem] leading-none font-semibold">
           Hisaab
         </span>
       ) : null}

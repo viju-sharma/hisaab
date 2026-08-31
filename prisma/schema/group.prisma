@@ -7,7 +7,7 @@ model Group {
 
   /// Lightweight identity so groups are distinguishable at a glance in a list.
   emoji    String @default("🧾")
-  colorKey String @default("indigo")
+  colorKey String @default("ink")
 
   currency String @default("INR")
 

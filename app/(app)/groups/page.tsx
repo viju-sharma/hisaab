@@ -2,6 +2,7 @@ import type { Metadata } from "next"
 import Link from "next/link"
 import { Plus } from "lucide-react"
 
+import { GroupMark } from "@/components/hisaab/group-mark"
 import { BalancePill } from "@/components/hisaab/money"
 import { MemberStack } from "@/components/hisaab/member-avatar"
 import { PageHeader } from "@/components/hisaab/page-header"
@@ -71,9 +72,12 @@ export default async function GroupsPage() {
               className="animate-row-in group flex flex-col gap-3 rounded-2xl border bg-card p-4 transition-all hover:border-primary/40 hover:shadow-sm active:translate-y-px"
             >
               <div className="flex items-start justify-between gap-2">
-                <span className="text-2xl" aria-hidden>
-                  {group.emoji}
-                </span>
+                <GroupMark
+                  name={group.name}
+                  colorKey={group.colorKey}
+                  id={group.id}
+                  className="size-10 text-[0.8rem]"
+                />
                 <BalancePill minor={group.myNetMinor} currency={group.currency} />
               </div>
               <div className="min-w-0">
@@ -101,7 +105,12 @@ export default async function GroupsPage() {
                   href={`/groups/${group.id}`}
                   className="flex items-center gap-3 px-4 py-3 text-sm text-muted-foreground transition-colors hover:bg-muted/60"
                 >
-                  <span aria-hidden>{group.emoji}</span>
+                  <GroupMark
+                    name={group.name}
+                    colorKey={group.colorKey}
+                    id={group.id}
+                    className="size-6 rounded-[0.15rem] text-[0.55rem]"
+                  />
                   <span className="truncate">{group.name}</span>
                 </Link>
               </li>

@@ -1,7 +1,7 @@
 import type { Metadata, Viewport } from "next"
 import { ClerkProvider } from "@clerk/nextjs"
 import { shadcn } from "@clerk/ui/themes"
-import { Geist_Mono, Instrument_Serif, Inter } from "next/font/google"
+import { Archivo, Geist_Mono } from "next/font/google"
 
 import "./globals.css"
 import { ServiceWorker } from "@/components/pwa/service-worker"
@@ -11,16 +11,13 @@ import { Toaster } from "@/components/ui/sonner"
 import { TooltipProvider } from "@/components/ui/tooltip"
 import { cn } from "@/lib/utils"
 
-const fontSans = Inter({ subsets: ["latin"], variable: "--font-sans" })
-
-/// Headlines only. A serif against Inter's numbers gives the app an editorial
-/// voice — a ledger kept by hand — where another grotesque would have left it
-/// looking like every other dashboard. Amounts stay in Inter: figures need
-/// tabular widths, which this face does not have.
-const fontDisplay = Instrument_Serif({
+/// One grotesque for everything. A second display face was doing the work a
+/// size jump should do, and the pairing it made — serif headline over sans body
+/// — is the house style of generated interfaces.
+const fontSans = Archivo({
   subsets: ["latin"],
-  weight: "400",
-  variable: "--font-display",
+  variable: "--font-sans",
+  axes: ["wdth"],
 })
 
 const fontMono = Geist_Mono({ subsets: ["latin"], variable: "--font-mono" })
@@ -73,7 +70,6 @@ export default function RootLayout({
         className={cn(
           "antialiased",
           fontSans.variable,
-          fontDisplay.variable,
           fontMono.variable
         )}
       >

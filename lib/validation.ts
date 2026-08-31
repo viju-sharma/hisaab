@@ -29,8 +29,7 @@ export const createGroupSchema = z.object({
   name: z.string().trim().min(1, "Give the group a name.").max(60),
   description: z.string().trim().max(280).optional().or(z.literal("")),
   type: groupTypeSchema.default("OTHER"),
-  emoji: z.string().min(1).max(8).default("🧾"),
-  colorKey: z.string().min(1).max(24).default("indigo"),
+  colorKey: z.string().min(1).max(24).default("ink"),
   currency: currency.default("INR"),
   simplifyDebts: z.boolean().default(true),
 })

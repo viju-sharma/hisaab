@@ -1,7 +1,8 @@
 import Link from "next/link"
 import { format, isThisYear, isToday, isYesterday } from "date-fns"
-import { Plus, Receipt } from "lucide-react"
+import { Plus } from "lucide-react"
 
+import { CategoryIcon } from "@/components/hisaab/category-icon"
 import { Money } from "@/components/hisaab/money"
 import { Button } from "@/components/ui/button"
 import { SectionHeading } from "@/components/hisaab/section-heading"
@@ -82,8 +83,8 @@ export default async function GroupExpensesPage({
                   href={`/groups/${groupId}/expenses/${expense.id}`}
                   className="animate-row-in flex items-center gap-3 px-4 py-3 transition-colors hover:bg-muted/60"
                 >
-                  <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-muted text-base">
-                    {expense.category?.emoji ?? <Receipt className="size-4" />}
+                  <span className="flex size-9 shrink-0 items-center justify-center rounded-[0.2rem] border bg-background text-muted-foreground">
+                    <CategoryIcon categoryKey={expense.category?.key} />
                   </span>
 
                   <span className="min-w-0 flex-1">
@@ -120,7 +121,7 @@ export default async function GroupExpensesPage({
                             currency={group.currency}
                           />
                         </span>
-                        <span className="text-[0.65rem] text-muted-foreground">
+                        <span className="text-[0.6875rem] text-muted-foreground">
                           {expense.myImpactMinor >= 0 ? "you lent" : "you owe"}
                         </span>
                       </>
