@@ -6,6 +6,7 @@ import { Geist_Mono, Inter, Plus_Jakarta_Sans } from "next/font/google"
 import "./globals.css"
 import { ServiceWorker } from "@/components/pwa/service-worker"
 import { ThemeProvider } from "@/components/theme-provider"
+import { ThemeScript } from "@/components/theme-script"
 import { Toaster } from "@/components/ui/sonner"
 import { TooltipProvider } from "@/components/ui/tooltip"
 import { cn } from "@/lib/utils"
@@ -73,6 +74,9 @@ export default function RootLayout({
           fontMono.variable
         )}
       >
+        <head>
+          <ThemeScript />
+        </head>
         <body className="min-h-svh bg-background">
           <ThemeProvider>
             <TooltipProvider>{children}</TooltipProvider>

@@ -1,23 +1,46 @@
 "use client"
 
 import * as React from "react"
-import { ThemeProvider as NextThemesProvider, useTheme } from "next-themes"
 
-function ThemeProvider({
-  children,
-  ...props
-}: React.ComponentProps<typeof NextThemesProvider>) {
+import {
+  readResolvedTheme,
+  readTheme,
+  subscribeToTheme,
+  writeTheme,
+  type ResolvedTheme,
+  type Theme,
+} from "@/lib/theme"
+
+/// A local replacement for next-themes. next-themes renders its no-flash script
+/// from inside the provider, which React 19 warns about — a script created
+/// during a client render never executes. Here the script is server-rendered
+/// into <head> (see components/theme-script.tsx) and the client only reads
+/// state, through useSyncExternalStore rather than an effect.
+export function useTheme(): {
+  theme: Theme
+  resolvedTheme: ResolvedTheme
+  setTheme: (theme: Theme) => void
+} {
+  const theme = React.useSyncExternalStore(
+    subscribeToTheme,
+    readTheme,
+    () => "system" as const
+  )
+  const resolvedTheme = React.useSyncExternalStore(
+    subscribeToTheme,
+    readResolvedTheme,
+    () => "light" as const
+  )
+
+  return { theme, resolvedTheme, setTheme: writeTheme }
+}
+
+function ThemeProvider({ children }: { children: React.ReactNode }) {
   return (
-    <NextThemesProvider
-      attribute="class"
-      defaultTheme="system"
-      enableSystem
-      disableTransitionOnChange
-      {...props}
-    >
+    <>
       <ThemeHotkey />
       {children}
-    </NextThemesProvider>
+    </>
   )
 }
 
