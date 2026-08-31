@@ -18,6 +18,10 @@ const isPublicRoute = createRouteMatcher([
   "/api/webhooks(.*)",
   "/api/cron(.*)",
   "/manifest.webmanifest",
+  // Crawler-facing and requested without a document `Accept`, which makes
+  // `auth.protect()` answer 404 rather than redirect. They have to be listed.
+  "/robots.txt",
+  "/sitemap.xml",
   "/sw.js",
   "/icons(.*)",
 ])
@@ -34,6 +38,16 @@ export default clerkMiddleware(async (auth, request) => {
 
   requestHeaders.set(TRACE_HEADER, traceId)
   requestHeaders.set(REQUEST_HEADER, requestId)
+
+  // The landing page prerenders as static HTML, so it cannot check for a
+  // session itself. Sending a signed-in visitor on from here is what buys that:
+  // the redirect happens at the edge, before any render.
+  if (request.nextUrl.pathname === "/") {
+    const { userId } = await auth()
+    if (userId) {
+      return NextResponse.redirect(new URL("/dashboard", request.url))
+    }
+  }
 
   // An optimistic gate only — the real authorisation check lives in
   // lib/authz.ts and runs on every read and write.
