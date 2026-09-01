@@ -6,7 +6,14 @@ import { HisaabLogo } from "@/components/brand/logo"
 import { JoinByCode } from "@/components/hisaab/join-by-code"
 import { Button } from "@/components/ui/button"
 
-export const metadata: Metadata = { title: "Join a group" }
+/// An invite code is unguessable rather than secret, and this page is public
+/// so a stranger's link works. Indexing one would turn a private group into a
+/// search result, so it is refused explicitly — robots.txt only asks nicely,
+/// and cannot help with a page someone has already linked to.
+export const metadata: Metadata = {
+  title: "Join a group",
+  robots: { index: false, follow: false },
+}
 
 /// Public on purpose: an invite link has to work for someone who has never
 /// heard of Hisaab. The code is carried through sign-in so nobody has to find
@@ -35,7 +42,7 @@ export default async function JoinWithCodePage({
       <h1 className="mt-6 font-display text-2xl tracking-tight text-balance">
         You have been invited to split expenses
       </h1>
-      <p className="mt-2 text-sm text-muted-foreground text-pretty">
+      <p className="mt-2 text-sm text-pretty text-muted-foreground">
         Sign in and you will join the group straight away. Your invite is
         remembered.
       </p>

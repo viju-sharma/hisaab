@@ -1,6 +1,15 @@
+import type { Metadata } from "next"
+
 import { AppShell } from "@/components/shell/app-shell"
 import { countUnreadNotifications } from "@/server/queries/activity"
 import { listGroupsForUser } from "@/server/queries/group"
+
+/// One declaration for the whole signed-in app. A crawler is redirected to
+/// sign-in before it ever renders these, but the header costs nothing and
+/// covers the case where that redirect is not what happens.
+export const metadata: Metadata = {
+  robots: { index: false, follow: false },
+}
 
 export default async function AppLayout({
   children,

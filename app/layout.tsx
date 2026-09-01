@@ -34,6 +34,55 @@ export const metadata: Metadata = {
   description:
     "Split bills with friends, flatmates and family. Track who paid, who owes, and settle up — in rupees.",
   applicationName: "Hisaab",
+  // Every page resolves its own canonical against this; without a default the
+  // same content served from a preview host or with tracking params on it
+  // looks like a second copy of the page.
+  alternates: { canonical: "/" },
+  keywords: [
+    "split expenses",
+    "expense splitting app",
+    "shared expenses",
+    "split bills",
+    "settle up",
+    "group expenses",
+    "flatmate expenses",
+    "trip expenses",
+    "UPI settlement",
+    "rupee expense tracker",
+  ],
+  authors: [{ name: "Hisaab" }],
+  creator: "Hisaab",
+  publisher: "Hisaab",
+  category: "finance",
+  openGraph: {
+    type: "website",
+    siteName: "Hisaab",
+    locale: "en_IN",
+    url: "/",
+    title: "Hisaab — shared expenses, settled",
+    description:
+      "Split bills with friends, flatmates and family. Track who paid, who owes, and settle up — in rupees.",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Hisaab — shared expenses, settled",
+    description:
+      "Split bills with friends, flatmates and family. Track who paid, who owes, and settle up — in rupees.",
+  },
+  // The defaults, said out loud. The pages that must not be indexed — the app
+  // behind the gate, invites, 404s — override this rather than relying on
+  // robots.txt alone, which cannot stop a page someone has linked to.
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+      "max-video-preview": -1,
+    },
+  },
   appleWebApp: {
     capable: true,
     title: "Hisaab",

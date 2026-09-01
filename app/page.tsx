@@ -7,6 +7,7 @@ import { ThemeSwitcher } from "@/components/hisaab/theme-switcher"
 import { AppPreview } from "@/components/marketing/app-preview"
 import { Reveal } from "@/components/motion/reveal"
 import { Button } from "@/components/ui/button"
+import { JsonLd, landingStructuredData } from "@/lib/structured-data"
 
 const POINTS = [
   {
@@ -34,6 +35,7 @@ const POINTS = [
 export default function LandingPage() {
   return (
     <div className="min-h-svh">
+      <JsonLd data={landingStructuredData()} />
       <header className="border-b">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
           <HisaabLogo />

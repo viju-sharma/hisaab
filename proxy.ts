@@ -24,6 +24,10 @@ const isPublicRoute = createRouteMatcher([
   "/sitemap.xml",
   "/sw.js",
   "/icons(.*)",
+  // The social cards. A crawler fetching one sends no document `Accept`
+  // either, and a card that needs a session is a card that never renders.
+  "/opengraph-image(.*)",
+  "/twitter-image(.*)",
 ])
 
 export default clerkMiddleware(async (auth, request) => {
