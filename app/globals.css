@@ -287,3 +287,16 @@
     transform: none;
   }
 }
+
+/* No scrollbars anywhere. Hisaab is a phone-first surface and a bar tracking
+   the edge of every pane is chrome, not information — on desktop the sidebar's
+   group list and the main column both grew one, and dialogs added a third.
+   Scrolling itself is untouched: this hides the indicator, not the overflow,
+   and keyboard, wheel, and touch scrolling all behave exactly as before. */
+* {
+  scrollbar-width: none;
+}
+
+*::-webkit-scrollbar {
+  display: none;
+}

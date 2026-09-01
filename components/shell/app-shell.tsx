@@ -109,7 +109,7 @@ export function AppShell({
         </div>
       </aside>
 
-      <header className="sticky top-0 z-30 flex items-center justify-between border-b bg-background/85 px-4 py-2.5 backdrop-blur-md md:hidden pt-safe">
+      <header className="pt-safe sticky top-0 z-30 flex min-h-14 items-center justify-between border-b bg-background/85 px-4 py-3 backdrop-blur-md md:hidden">
         <Link href="/dashboard">
           <HisaabLogo />
         </Link>
@@ -134,17 +134,21 @@ export function AppShell({
         </motion.div>
       </main>
 
-      <nav className="fixed inset-x-0 bottom-0 z-30 border-t bg-background/90 backdrop-blur-md md:hidden pb-safe">
-        <div className="mx-auto flex max-w-md items-end justify-around px-2 pt-1.5">
+      <nav className="pb-safe fixed inset-x-0 bottom-0 z-30 border-t bg-background/90 backdrop-blur-md md:hidden">
+        <div className="mx-auto flex max-w-md items-end justify-around px-2 pt-2 pb-1">
           {NAV_ITEMS.filter((item) => item.primary)
             .slice(0, 2)
             .map((item) => (
-              <TabLink key={item.href} item={item} active={isActive(item.href)} />
+              <TabLink
+                key={item.href}
+                item={item}
+                active={isActive(item.href)}
+              />
             ))}
 
           <NewExpenseButton groups={groups}>
-            <span className="flex size-12 -translate-y-3 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-lg shadow-primary/25 transition-transform active:scale-95">
-              <Plus className="size-6" />
+            <span className="flex size-14 -translate-y-3.5 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-lg shadow-primary/25 transition-transform active:scale-95">
+              <Plus className="size-7" />
               <span className="sr-only">Add an expense</span>
             </span>
           </NewExpenseButton>
@@ -179,14 +183,16 @@ function TabLink({
       href={item.href}
       aria-current={active ? "page" : undefined}
       className={cn(
-        "relative flex min-w-14 flex-col items-center gap-0.5 rounded-lg px-2 py-1.5 text-[0.65rem] font-medium transition-colors",
+        "relative flex min-h-14 min-w-16 flex-col items-center justify-center gap-1 rounded-lg px-2 py-1.5 text-[0.7rem] font-medium transition-colors",
         active ? "text-primary" : "text-muted-foreground"
       )}
     >
-      <item.icon className={cn("size-5 transition-transform", active && "scale-110")} />
+      <item.icon
+        className={cn("size-6 transition-transform", active && "scale-110")}
+      />
       {item.label}
       {badge > 0 ? (
-        <span className="absolute top-0.5 right-2 size-2 rounded-full bg-primary" />
+        <span className="absolute top-1.5 right-3 size-2 rounded-full bg-primary" />
       ) : null}
     </Link>
   )
