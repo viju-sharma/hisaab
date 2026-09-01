@@ -1,19 +1,22 @@
+import type { Metadata } from "next"
 import Link from "next/link"
 
 import { HisaabLogo } from "@/components/brand/logo"
 import { Button } from "@/components/ui/button"
 
-export const metadata = { title: "Not found" }
+/// Only the title. Next emits `noindex` for this route itself, and repeating
+/// it here just puts two robots tags in the same head.
+export const metadata: Metadata = { title: "Not found" }
 
 export default function NotFound() {
   return (
     <main className="mx-auto flex min-h-svh max-w-md flex-col justify-center px-6">
       <HisaabLogo />
       <p className="label-mono mt-10 text-muted-foreground">404</p>
-      <h1 className="font-display mt-3 text-3xl leading-tight text-balance">
+      <h1 className="mt-3 font-display text-3xl leading-tight text-balance">
         There is nothing at this address.
       </h1>
-      <p className="mt-3 text-sm text-muted-foreground text-pretty">
+      <p className="mt-3 text-sm text-pretty text-muted-foreground">
         The link may be old, or the group it pointed at may have been deleted.
       </p>
       <div className="mt-8 flex flex-wrap gap-2.5">
